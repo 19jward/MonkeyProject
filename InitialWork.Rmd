@@ -1,0 +1,531 @@
+---
+title: "Initial Monkey Stuff"
+author: "Josephine Ward"
+date: "2024-12-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# ToC
+* I. Packages
+* II. Initial Setup
+  - II.1 Defining Stuff
+* III. Basic Plots
+  - III.1 Time Plots
+  - III.2 Behavior Trajectory Plot Attempt (failed...)
+* IV. Transition Matrices Attempts (lot of failure)
+  - IV.1 trying packages bc i didnt want to do it myself
+* V. Reset/ditched the script file for the rmd
+  - V.1 Isolate Focal Function
+* VI. Looking at Individual Focals
+  - VI.1 Comparing individuals in forest vs road
+* VII. Transition Matrix Function!
+* VIII. Making New Functions
+  - VIII.1 Pseudo-code mapping
+
+# I. Packages
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(igraph)
+library(lubridate)
+library(markovchain)
+library(migrate)
+```
+
+
+# II. Initial Setup
+```{r}
+## setup
+prelim <- read.csv("~/Desktop/monkey/SEED_Focal Continuous Preliminary Data_21 July 2024 to 31 August 2024_Timestamped_AD-1.csv")
+summary(prelim)
+
+## subset of data (variables I think I care about)
+monkeysub <- data.frame(prelim$Time.Spent..Seconds., prelim$Focal.ID, prelim$Focal.Individual, 
+                       prelim$Habitat, prelim$Behavior, prelim$Time)
+labels <- c("Time", "FocalID", "Individual", "Habitat", "Behavior", "TimeStamp")
+colnames(monkeysub) <- labels
+monkeysub <- monkeysub[!(monkeysub$Behavior %in% "End Focal (NEXT)"),]
+```
+
+## II.1 Defining Stuff
+```{r}
+monkeynames <- c("Abu", "Afwan", "Beti", "Caca", "Cri", "Daffa", "Dirgha", "Erin", "Gado", "Hantu",
+                 "Jaya", "Jengo", "Korra", "Mamoa", "Misses", "Moka", "Nami", "Nopi",
+                 "OG", "Pado", "Rusak")
+
+habitats <- c("Jalan", "Hutan")
+
+## i think i renamed this later to get rid of the SAVE and NEXT stuff
+behaviors <- c("Move (SAVE)", "Vigilance (SAVE)", "Feed (NEXT)", "Rest (SAVE)",
+               "Affiliative (NEXT)", "Aggressive (NEXT)", "SelfGroom (SAVE)",
+               "Survey (SAVE)", "PAUSE (SAVE)", "Human Directed (NEXT)",
+               "Forage (NEXT)", "Sleep (SAVE)", "Play (SAVE)")
+```
+
+# III. Basic Plots
+
+## III.1 Time Plots
+```{r}
+## BASIC TIME PLOTS
+
+## plot for individual vs sum time
+IndivSumTimes <- c()
+for(x in monkeynames){
+  timespent <- sum(monkeysub[which(monkeysub$Individual == x), 1])
+  IndivSumTimes <- c(IndivSumTimes, timespent)
+}
+SumTimes <- data.frame(monkeynames, IndivSumTimes)
+
+plot(as.factor(monkeynames), as.numeric(IndivSumTimes), data = SumTimes) 
+sd(IndivSumTimes)
+print("sd for Individual Times: 868.6295")
+
+## plot for habitat vs sum time
+HabitatSumTimes <- c()
+for(x in habitats){
+  timespent <- sum(monkeysub[which(monkeysub$Habitat == x), 1])
+  HabitatSumTimes <- c(HabitatSumTimes, timespent)
+}
+HabSumTimes <- data.frame(habitats, HabitatSumTimes)
+
+plot(as.factor(habitats), as.numeric(HabitatSumTimes), data = HabSumTimes)
+
+## plot for behavior vs sum time
+BehaviorSumTimes <- c()
+for(x in behaviors){
+  timespent <- sum(monkeysub[which(monkeysub$Behavior == x), 1])
+  BehaviorSumTimes <- c(BehaviorSumTimes, timespent)
+}
+BevSumTimes <- data.frame(behaviors, BehaviorSumTimes)
+
+plot(as.factor(behaviors), as.numeric(BehaviorSumTimes), data = BevSumTimes)
+
+## plot for focal ID vs sum time but i cant remember what focal ID actually is
+focalid2 <- c(1:61)
+focalIDSumTimes <- c()
+for(i in 1:61){
+  timespent <- sum(monkeysub[which(monkeysub$FocalID == i), 1])
+  focalIDSumTimes <- c(focalIDSumTimes, timespent)
+}
+FocalIDSumTimes <- data.frame(focalid2, focalIDSumTimes)
+
+plot(as.numeric(focalid2), as.numeric(focalIDSumTimes), data = FocalIDSumTimes)
+```
+
+## III.2 Behavior Trajectory Plot Attempt (failed...)
+```{r eval=FALSE, include=FALSE}
+## Behavioral Trajectory Plot (it didnt work)
+
+onefocal <- subset(monkeysub, monkeysub$FocalID == 1.0)
+
+plot(x = as.numeric(onefocal$TimeStamp), y = as.factor(onefocal$Behavior))
+
+## issue: how to treat the time stamp? its not numeric? but it wasnt working as a factor?
+
+
+## take 2 I found a package??? didnt really look too much into it so hopefully its not sus
+
+library(ggplot2)
+library(lubridate)
+onefocal$TimeStamp <- as.POSIXct(as.character(onefocal$TimeStamp), format="%X")
+
+ggplot(data = onefocal, aes(x=TimeStamp)) + 
+  geom_point(aes(y=Behavior, col=1)) +
+  ylab("Behavior") + xlab("Time")
+
+
+## take 3 on behavior trajectory plot
+cumsum <- cumsum(onefocal$Time)
+cumsum <- data.frame(cumsum)
+onefocal <- cbind(onefocal, cumsum)
+
+ggplot(data = onefocal, aes(x=cumsum)) + 
+  geom_point(aes(y=Behavior, col=1)) +
+  geom_path(aes(y=Behavior, col=1)) +
+  ylab("Behavior") + xlab("Time")
+
+## things that didnt work: geom_segment (needs specific start/end)
+## geom_path --> gave the same thing as geom_line
+## geom_jitter + geom_path was a wack combo
+## geom point + geom_path was similar but still not right
+
+## ok so the issue is that i cant get the lines to cross to a different behavior
+## putting a pause in that to try to overlap some plots with just the points
+
+onefocal2 <- subset(monkeysub, monkeysub$FocalID == 2.0)
+cumsum2 <- cumsum(onefocal2$Time)
+cumsum2 <- data.frame(cumsum2)
+onefocal2 <- cbind(onefocal2, cumsum2)
+
+ggplot(data = onefocal2, aes(x=cumsum2)) + 
+  geom_point(aes(y=Behavior, col=1)) +
+  ylab("Behavior") + xlab("Time")
+
+ggplot(data = onefocal2, aes(x=cumsum2)) + 
+  geom_point(aes(y=Behavior, col=1)) +
+  geom_point(data = onefocal, aes(x = cumsum, y = Behavior)) +
+  ylab("Behavior") + xlab("Time")
+
+## add another one
+onefocal3 <- subset(monkeysub, monkeysub$FocalID == 3.0)
+cumsum3 <- cumsum(onefocal3$Time)
+cumsum3 <- data.frame(cumsum3)
+onefocal3 <- cbind(onefocal3, cumsum3)
+
+ggplot(data = onefocal3, aes(x=cumsum3)) + 
+  geom_point(aes(y=Behavior, col=1)) +
+  ylab("Behavior") + xlab("Time")
+
+ggplot(data = onefocal2, aes(x=cumsum2)) + 
+  geom_point(aes(y=Behavior, col=1)) +
+  geom_point(data = onefocal, aes(x = cumsum, y = Behavior)) +
+  geom_point(data = onefocal3, aes(x = cumsum3, y = Behavior)) +
+  ylab("Behavior") + xlab("Time")
+
+onefocal4 <- subset(monkeysub, monkeysub$FocalID == 4.0)
+cumsum4 <- cumsum(onefocal4$Time)
+cumsum4 <- data.frame(cumsum4)
+onefocal4 <- cbind(onefocal4, cumsum4)
+
+onefocal5 <- subset(monkeysub, monkeysub$FocalID == 5.0)
+cumsum5 <- cumsum(onefocal5$Time)
+cumsum5 <- data.frame(cumsum5)
+onefocal5 <- cbind(onefocal5, cumsum5)
+
+```
+
+# IV. Transition Matrices
+
+## IV.1 trying packages bc i didnt want to do it myself
+```{r eval=FALSE, include=FALSE}
+# new packages
+## trying a new package: markovchain
+## https://cran.r-project.org/web/packages/markovchain/markovchain.pdf
+## its only for discrete time but we're gonna roll with it
+library(markovchain)
+## prop.table (base R)
+## https://www.r-bloggers.com/2021/11/markov-transition-animated-plots/
+## this is a lit animated plot but i need the matrix first
+## should probably try to add a color scale to that or something  
+
+
+
+library(dplyr)
+library(tidyr)
+library(igraph)
+
+df <- data.frame(monkeysub$Behavior, monkeysub$Time)
+transmat <- graph_from_data_frame(df, directed = TRUE)
+plot(transmat,edge.arrow.size=.5, vertex.color="pink", vertex.size=3, 
+     vertex.frame.color="gray", vertex.label.color="lightblue", 
+     vertex.label.cex=.5, vertex.label.dist=2, edge.curved=0.5,layout=layout_with_lgl)
+## yeah that didnt do what I wanted it to do nm
+
+
+## most packages assume that you already have a transition matrix which is a problem
+
+
+## migrate package
+library(migrate)
+df2 <- data.frame(monkeysub$Behavior, monkeysub$TimeStamp)
+## ok the migrate function didnt work either
+## i'm going insane theres no way that I just have to do this manually for all of them??
+
+```
+
+# V. Reset/where I switched to a rmd file
+- I tried a whole bunch of stuff trying to get R to automatically give me a transition matrix for a focal and it was not cooperating with me :(
+- I went into excel to clean up the csv file a little to make it easier to work with
+- Q: is PAUSE a pause on the monkey or the observer
+- Q: what does it mean when its the same behavior right on top of another (i've been assuming theres no gap)
+
+```{r}
+## data import
+monkeyprelimdata <- read.csv("~/Desktop/monkey/monkeyprelimdata.csv")
+behaviorshortlist <- c("move", "vig", "feed", "rest", "affil", "agg", "groom", "survey", "PAUSE", "human", "forage", "sleep", "play")
+```
+
+## V.1 Isolate focal function
+```{r}
+## function to isolate a single focal & add a cumulative time column
+isolate.focal <- function(i){
+  onefocal.i <- subset(monkeyprelimdata, monkeyprelimdata$FocalID == i)
+  cumsum.i <- data.frame(cumsum(onefocal.i$TimeSpent))
+  onefocal.i <- cbind(onefocal.i, cumsum.i)
+  return(onefocal.i)
+}
+```
+
+# VI. Looking at Individual Focals
+
+## VI.1 Comparing individuals in forest vs road
+```{r}
+## isolate selected focals (1 forest, 1 road per individual)
+## can't say i chose these randomly but like I chose them on vibes of liking the focal numbers lolß
+
+## Caca
+focal1 <- isolate.focal(1)
+focal43 <- isolate.focal(43)
+
+
+## afwan
+focal35 <- isolate.focal(35)
+focal40 <- isolate.focal(40)
+
+## Gado
+focal21 <- isolate.focal(21)
+focal28 <- isolate.focal(28)
+```
+
+```{r}
+## create transition matrices
+
+## CACA (1, 43)
+trans1 <- matrix(c(0.8421, 0.1053, 0.0526, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0.0102, 0.9898, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0.0028, 0, 0.9972, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), nrow = 13, ncol = 13)
+
+trans43 <- matrix(c(0.989, 0, 0, 0, 0, 0, 0.0074, 0, 0, 0, 0.0037, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0,
+                   0.0119, 0, 0, 0.9881, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0.006, 0, 0, 0.012, 0, 0, 0.9819, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0.25, 0, 0, 0, 0.75, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), nrow = 13, ncol = 13)
+
+par(mfrow = c(1, 2))
+image(trans1, col = hcl.colors(13, "set 3"))  ## caca jalan
+image(trans43, col = hcl.colors(13, "set 3")) ## caca hutan
+```
+
+```{r}
+## AFWAN (35, 40)
+
+trans35 <- matrix(c(0.9167, 0, 0.0417, 0, 0.0083, 0.0083, 0.025, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0.0154, 0, 0.9730, 0, 0, 0, 0.0039, 0, 0, 0.0077, 0, 0 ,0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0.0105, 0, 0, 0, 0.9895, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0.667, 0, 0, 0, 0.333, 0, 0, 0,
+                   0.0606, 0, 0, 0, 0, 0, 0.9394, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0.0789, 0, 0, 0, 0, 0, 0, 0.9211, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0.25, 0, 0, 0, 0.75, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), nrow = 13, ncol = 13)
+
+trans40 <- matrix(c(0.9798, 0, 0, 0, 0, 0, 0.0101, 0, 0, 0, 0.0101, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0.0021, 0, 0, 0, 0.9958, 0, 0, 0.0021, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0.5, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0.1111, 0, 0, 0.8889, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0.1111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8889, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), nrow = 13, ncol = 13)
+
+
+par(mfrow = c(1, 2))
+image(trans35, col = hcl.colors(13, "set 3")) ## afwan Jalan
+image(trans40, col = hcl.colors(13, "set 3")) ## afwan hutan
+```
+
+observations
+\
+-feed to move is such a cycle
+\
+-human directed behavior is always followed by feed (which makes sense)
+\
+-just a lot more going on when they are by the road i think
+\
+\
+still struggling to get the axis labels, see behaviorshortlist for the order on the axes
+
+```{r}
+## GADO (21, 28)
+trans21 <- matrix(c(0.9583, 0, 0, 0.0208, 0, 0, 0, 0, 0, 0.0208, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0,
+                   0, 0, 0, 0.9623, 0, 0, 0, 0, 0, 0.0377, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0.9286, 0, 0, 0, 0.0714, 0, 0, 0,
+                   0.0131, 0, 0, 0.0065, 0, 0, 0.9673, 0, 0, 0.0131, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0.0069, 0, 0.9931, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0.0118, 0, 0, 0.0296, 0.0118, 0, 0.9467, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), nrow = 13, ncol = 13)
+
+trans28 <- matrix(c(0.9444, 0, 0.0556, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0.96, 0.04, 0, 0, 0, 0, 0, 0, 0, 0 ,0,
+                   0, 0, 0, 0.9722, 0.0278, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0.005, 0.995, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), nrow = 13, ncol = 13)
+
+
+par(mfrow = c(1, 2))
+image(trans21, col = hcl.colors(13, "Greens3", rev = 1)) ## gado Jalan
+image(trans28, col = hcl.colors(13, "Greens3", rev = 1)) ## gado hutan
+```
+-wack: human directed not followed by feed (actually check the next, yeah that didnt tell me anything, i was looking to see if maybe it was some other interaction with a human other than being fed)
+\
+-really cant see the transitions in this one, did a lot of staying still
+\
+-def feel like the diff monkeys have diff vibes
+
+
+For next time (after break):
+-make a toy data set to try to get it to make a transition matrix
+  -double loop
+-MarkovChainFit
+-sparse representation
+
+
+
+# VII. Transition Matrix Function!
+
+make a function to get a transition matrix from a focal
+
+```{r}
+behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
+               "Affiliative", "Aggressive", "SelfGroom",
+               "Survey", "PAUSE", "Human Directed",
+               "Forage", "Sleep", "Play")
+
+matrixfunct <- function(dataframe, behaviorshortlist){
+  Matrix <- matrix(NA, nrow = length(behaviorshortlist), ncol = length(behaviorshortlist))
+  rownames(Matrix) <- colnames(Matrix) <- behaviorshortlist
+  for(b1 in behaviorshortlist){
+    denomentator <- sum(dataframe$TimeSpent[dataframe$Behavior == b1]) - 
+      as.numeric(tail(dataframe$Behavior, 1) == b1) ## accounting for if the last behavior in focal is b1 (doesn't count as a transition opportunity), overall total possible transition opportunities
+    b1_ind <- which(dataframe$Behavior == b1)
+    for(b2 in behaviorshortlist){
+      if(b1 == b2){ ## if staying in the same behavior
+        numerator <- denomentator - sum(dataframe$Behavior == b1) + 
+          as.numeric(tail(dataframe$Behavior, 1) == b1) 
+        ## removing the times they switched to a diff behavior & adding back in that situation if the last behavior is b1
+        } else { ## if moving to a different behavior
+          numerator <- sum(dataframe$Behavior[b1_ind + 1] == b2, na.rm = T)
+          }
+      Matrix[b1,b2] <- numerator/denomentator
+    }
+  }
+return(Matrix)
+}
+
+Matrix <- matrixfunct(focal28, behaviorshortlist)
+rowSums(Matrix)
+Matrix
+```
+
+problems:
+* rows are not adding to 1
+  - probably an issue with the tail case (the last behavior)
+  - problem solved, it was a typo :)
+* still a problem: double behavior thing
+  - i think its probably easier to just fix that in the data frame and not try to change the function
+  
+
+
+Up Next (end of January):
+* reorganize this file to make sense
+* start r package for that function
+* make repo (add Henry)
+* uncertainty quantification (intervals)
+  - predictors/regression?
+* new function
+  - input: observations, relevant parameters
+  - ouput: single scalar likelihood quantile
+  - get log like-likelihood 
+  - get behaviors
+
+# VIII. Making New Functions
+
+## VIII.1 Pseudo-code mapping
+
+- get log-likelihood function (the spacing on this will probably look wack when i knit but thats life)
+_______________________________________________________
+P = the probability transition matrix?
+
+get_LL --> function(behaviors, P){
+  .
+  .
+  .
+  return(log-likelihood)
+}
+Check:
+If you’ve made behaviors w/particular P, does it give you close to the highest possible value with the first function
+1. Simulate behaviors from P
+2. Check get_LL is maximized close to P
+Then optim function will help us with maximization
+^^ alright that is the outline Henry gave 
+_________________________________________________________
+ok idk what im doing here
+ive potentially lost the plot with what this function is supposed to accomplish 
+
+so we want the likelhood --> probability of being in any particular behavior
+so this function needs to take in data and calculate probabilty of being in each of the behaviors
+that is not matching up with what henry gave above
+is the output a vector? like a scalar value for each behavior and then the entire vector adds to 1?
+
+are we assuming we have enough data to make this a normal distribution? is that a bold assumption it feels bold but then we can use dnorm/rnorm???
+
+optim() function for optimization (so like do the derivative part for me once i have the equation?)
+
+________________________________________________________________________
+get_LL --> function(behaviors, data){
+  n <- length(behaviors) ## number of observations? idk if behaviors is what to put there
+  P <- matrixfunct(data, behaviors) ## so this will give us the transition matrix, only works for 1 focal rn
+  
+  liklihood_eq <- (product (of each entry of the matrix^total number of transitions?))
+    ## no thats not right bc it will just give a single number? 
+    ## do i do this for each behavior? should this be in the for loop
+ 
+  log-likelihood <- define an empty matrix here with length(behaviors) to add to in the for loop
+  
+  for(b in behaviors){
+    optim(log(liklihood_eq))
+    and then add it to the matrix in the right spot in log-likelihood
+  }
+  return(log-likelihood)
+}
+___________________________________________________________________________
+get_behaviors —> function(P, initial_behavior){
+	.
+	.
+	.
+	return(Behaviors)}
