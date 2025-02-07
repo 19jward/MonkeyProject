@@ -529,3 +529,6 @@ get_behaviors —> function(P, initial_behavior){
 	.
 	.
 	return(Behaviors)}
+	
+______________________________
+testing that my git sync worked correctly (finally.....legit many hours later)
