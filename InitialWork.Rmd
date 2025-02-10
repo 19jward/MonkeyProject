@@ -473,7 +473,7 @@ Up Next (end of January):
   - get log like-likelihood 
   - get behaviors
 
-# VIII. Making New Functions
+# VIII. Making New Functions (moving functions to new doc)
 
 ## VIII.1 Pseudo-code mapping
 

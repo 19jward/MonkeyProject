@@ -8,3 +8,123 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+# TOC
+* I. Packages
+* II. Transition Matrix from an Individual Focal
+* III. New Function: Get Log-Likelihood
+  - III.1 Pseudo-Code
+* IV. New Function: Get Behaviors
+  - IV.1 Pseudo-Code
+
+# I. Packages
+
+```{r}
+
+```
+
+
+# II. Transition Matrix from an Individual Focal
+
+```{r}
+behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
+               "Affiliative", "Aggressive", "SelfGroom",
+               "Survey", "PAUSE", "Human Directed",
+               "Forage", "Sleep", "Play")
+
+matrixfunct <- function(dataframe, behaviorshortlist){
+  Matrix <- matrix(NA, nrow = length(behaviorshortlist), ncol = length(behaviorshortlist))
+  rownames(Matrix) <- colnames(Matrix) <- behaviorshortlist
+  for(b1 in behaviorshortlist){
+    denomentator <- sum(dataframe$TimeSpent[dataframe$Behavior == b1]) - 
+      as.numeric(tail(dataframe$Behavior, 1) == b1) ## accounting for if the last behavior in focal is b1 (doesn't count as a transition opportunity), overall total possible transition opportunities
+    b1_ind <- which(dataframe$Behavior == b1)
+    for(b2 in behaviorshortlist){
+      if(b1 == b2){ ## if staying in the same behavior
+        numerator <- denomentator - sum(dataframe$Behavior == b1) + 
+          as.numeric(tail(dataframe$Behavior, 1) == b1) 
+        ## removing the times they switched to a diff behavior & adding back in that situation if the last behavior is b1
+        } else { ## if moving to a different behavior
+          numerator <- sum(dataframe$Behavior[b1_ind + 1] == b2, na.rm = T)
+          }
+      Matrix[b1,b2] <- numerator/denomentator
+    }
+  }
+return(Matrix)
+}
+
+Matrix <- matrixfunct(focal28, behaviorshortlist)
+rowSums(Matrix)
+Matrix
+```
+
+** NOTE: this does not work when we have the situation where the data file has 2 of the same behavior right on top of eachother --> probably easier to fix by cleaning the dataframe than changing the function (also we never concretely established why it is like that in the data)
+
+
+** future consideration: how to make this apply to multiple combined focals
+** also make it more generalizable than the specific names I have going on here
+
+
+# III. Get Log-Likelihood Function
+
+## III.1 Pseudo-Code/Work
+- get log-likelihood function (the spacing on this will probably look wack when i knit but thats life)
+_______________________________________________________
+Outline from Henry:
+P = the probability transition matrix?
+
+get_LL --> function(behaviors, P){
+  .
+  .
+  .
+  return(log-likelihood)
+}
+Check:
+If you’ve made behaviors w/particular P, does it give you close to the highest possible value with the first function
+1. Simulate behaviors from P
+2. Check get_LL is maximized close to P
+Then optim function will help us with maximization
+
+_________________________________________________________
+ok idk what im doing here
+ive potentially lost the plot with what this function is supposed to accomplish 
+
+so we want the likelhood --> probability of being in any particular behavior
+so this function needs to take in data and calculate probability of being in each of the behaviors
+that is not matching up with what henry gave above
+is the output a vector? like a scalar value for each behavior and then the entire vector adds to 1?
+
+are we assuming we have enough data to make this a normal distribution? is that a bold assumption it feels bold but then we can use dnorm/rnorm???
+
+optim() function for optimization (so like do the derivative part for me once i have the equation?)
+
+________________________________________________________________________
+get_LL --> function(list of behaviors, data){
+  n <- length(behaviors) ## number of observations? idk if behaviors is what to put there
+  P <- matrixfunct(data, behaviors) ## so this will give us the transition matrix, only works for 1 focal rn
+  
+  liklihood_eq <- (product (of each entry of the matrix^total number of transitions?))
+    ## no thats not right bc it will just give a single number? 
+    ## do i do this for each behavior? should this be in the for loop
+ 
+  log-likelihood <- define an empty matrix here with length(behaviors) to add to in the for loop
+  
+  for(b in behaviors){
+    optim(log(liklihood_eq))
+    and then add it to the matrix in the right spot in log-likelihood
+  }
+  return(log-likelihood)
+}
+___________________________________________________________________________
+
+# IV. Get Behaviors
+
+## IV.1 Pseudo-Code
+
+from henry:
+
+get_behaviors —> function(P, initial_behavior){
+	.
+	.
+	.
+	return(Behaviors)}
