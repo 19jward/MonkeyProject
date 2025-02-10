@@ -1,0 +1,10 @@
+---
+title: "Function Development"
+author: "Josephine Ward"
+date: "2025-02-10"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
