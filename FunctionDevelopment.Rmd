@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 * II. Transition Matrix from an Individual Focal
 * III. New Function: Get Log-Likelihood
   - III.1 Pseudo-Code
+  - III.2 Code Attempts
 * IV. New Function: Get Behaviors
   - IV.1 Pseudo-Code
 
@@ -85,37 +86,102 @@ If you’ve made behaviors w/particular P, does it give you close to the highest
 2. Check get_LL is maximized close to P
 Then optim function will help us with maximization
 
-_________________________________________________________
-ok idk what im doing here
-ive potentially lost the plot with what this function is supposed to accomplish 
+________________________________________________________________________
 
-so we want the likelhood --> probability of being in any particular behavior
+so we want the likelhood --> probability of being in any particular behavior (function of parameters given data)
+
 so this function needs to take in data and calculate probability of being in each of the behaviors
-that is not matching up with what henry gave above
-is the output a vector? like a scalar value for each behavior and then the entire vector adds to 1?
 
-are we assuming we have enough data to make this a normal distribution? is that a bold assumption it feels bold but then we can use dnorm/rnorm???
 
 optim() function for optimization (so like do the derivative part for me once i have the equation?)
 
-________________________________________________________________________
-get_LL --> function(list of behaviors, data){
-  n <- length(behaviors) ## number of observations? idk if behaviors is what to put there
-  P <- matrixfunct(data, behaviors) ## so this will give us the transition matrix, only works for 1 focal rn
-  
-  liklihood_eq <- (product (of each entry of the matrix^total number of transitions?))
-    ## no thats not right bc it will just give a single number? 
-    ## do i do this for each behavior? should this be in the for loop
- 
-  log-likelihood <- define an empty matrix here with length(behaviors) to add to in the for loop
-  
-  for(b in behaviors){
-    optim(log(liklihood_eq))
-    and then add it to the matrix in the right spot in log-likelihood
-  }
-  return(log-likelihood)
-}
+toy examples for the package (vignettes)
+
 ___________________________________________________________________________
+work w/Henry during the meeting:
+
+y1 = behavior at first time point
+y1| p1 ~ categorical w/probability p1= (p11, p12, ..., p1B) B = 13/ whatever the number of behaviors are
+  p1 = probabilkty of being in which of the B behaviors when you wander out and see the monkeys
+
+P = transition matrix 
+
+yt = ( 0 0 0 ...... 1 ...... 0 0 0)^T bth behavior
+
+yt|[y(t-1), P ] ~ cat(Py(t-1)) ~ Cat(pt)
+
+pt = P*y(t-1) --> picks out particular row of P
+
+holds for t2 --> B
+
+so now we can find the likelihood
+things:
+- categorical --> pmf not pdf
+- not independent 
+
+L(theta, y) = P(y1|p1)P(y2|y1, P)P(y3|y2, P) .....
+            = P(y1|p1)*product(P(yt|y(t-1), P))
+            
+            inner product of y1^t*p1
+            (y1^t*p1)(yT*P*y(T-1)).....(y2*P*y(2-1))
+            
+we prefer log
+
+log(L) = sum of logs = log(y1^t*p1) + log(yT*P*y(T-1)) + ......
+
+P(y1|p1) = P11 ^ y11 * P12^y12 * ..... * P1B^y1B
+log(^^) = y1^tlog(p1)
+
+need to like expand the data so it has each second as individual 
+
+output is a single scalar (not a matrix)
+
+essentially doing this to test different Ps
+
+then we optimize that function to find the Ps
+
+
+test function , give it a P, tells us how good we are doing
+
+checks we can do:
+
+take a focal, take one of the point estimated matrices, do the log-likelihood, try it again with a diff transition matrix, likelihood value should go down
+
+P = matrix(p11, p12, p13, p21, p22, p23, p31, p32, p33, row = 3, col = 3)
+but what if p12 = beta0 + beta1(X=indicator for forest)
+probably have to do logit and make sure the ps all sum to 1 still? idk 
+so we take our function and tweak it to have betas instead of Ps
+___________________________________________________________________________
+## III.2 Code Attempts
+```{r}
+## so this function takes in some data (like a focal basically) in the form of a list of behaviors
+## also takes P, a transition matrix, probability of going from one behavior to the next
+get_LL <- function(data, P){
+  # y1 <- first listed behavior
+  # p1 <- probabilty of starting behavior
+  # yt <-  = ( 0 0 ... 1 .... 0 0) where the 1 tells us which behavior it is, goes to B
+  
+  ## pick out a particular row of P (a vector of probabilities)
+  ## this holds for behavior = 2 --> B (where B is the last listed behavior)
+  # pt <- probability of going to a behavior at time t = P*y(t-1)
+  
+  
+  ## define likelihood function
+  # L(theta, y) = P(y1|p1)P(y2|y1, P)P(y3|y2, P) .....
+  #          = P(y1|p1)*product(P(yt|y(t-1), P))
+            
+  #          inner product of y1^t*p1
+  #          (y1^t*p1)(yT*P*y(T-1)).....(y2*P*y(2-1))
+  
+  ## make it a log-likelihood
+  # LogL <- log(L) = sum of logs = log(y1^t*p1) + log(yT*P*y(T-1)) + ......
+  # P(y1|p1) = P11 ^ y11 * P12^y12 * ..... * P1B^y1B
+  # log(^^) = y1^tlog(p1)
+  
+  return(LogL)
+}
+```
+- where to use data?
 
 # IV. Get Behaviors
 
