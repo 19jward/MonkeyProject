@@ -163,9 +163,12 @@ ___________________________________________________________________________
 ## so this function takes in some data (like a focal basically) in the form of a list of behaviors
 ## also takes P, a transition matrix, probability of going from one behavior to the next
 get_LL <- function(data, P){
-  # y1 <- first listed behavior
-  # p1 <- probabilty of starting behavior
-  # yt <-  = ( 0 0 ... 1 .... 0 0) where the 1 tells us which behavior it is, goes to B
+  # y1 <- first listed behavior in the data
+  y1 <- data$Behavior[1]
+  # p1 <- probabilty of starting behavior (idk where im getting this yeet)
+  
+  # t <- behavior (is t our index?)
+  # yt <-  vector of 0s and 1s that tell us what behavior we are at (idk how to this)
   
   ## pick out a particular row of P (a vector of probabilities)
   ## this holds for behavior = 2 --> B (where B is the last listed behavior)
@@ -198,8 +201,15 @@ focal_10 <- isolate.focal(10)
 P_10 <- matrixfunct(focal_10, behaviorshortlist)
 ```
 
-- i think im missing something
-- like somewhere there is supposed to be a part where i can put some variables like forst/road or whatever and that is included in the likelihood?
+Qs:
+- where am i getting p1 from (probability of being in the first behavior), does that come from the data or is that something we are going to preset as some constant vector for the  behaviors?
+- is t the index?
+- idk how to do the yt vector that tells us which behavior it is in time t w/vector of 0s and 1
+
+-for loop to define pt?
+
+
+- like somewhere there is supposed to be a part where i can put some variables like forest/road or whatever and that is included in the likelihood?
 
 
 # IV. Get Behaviors
