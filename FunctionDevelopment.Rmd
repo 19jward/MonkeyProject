@@ -40,7 +40,7 @@ behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
 ```{r}
 behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
                "Affiliative", "Aggressive", "SelfGroom",
-               "Survey", "PAUSE", "Human Directed",
+               "Survey", "Human Directed",
                "Forage", "Sleep", "Play")
 
 matrixfunct <- function(dataframe, behaviorshortlist){
@@ -162,13 +162,14 @@ ___________________________________________________________________________
 ```{r}
 ## so this function takes in some data (like a focal basically) in the form of a list of behaviors
 ## also takes P, a transition matrix, probability of going from one behavior to the next
+
 get_LL <- function(data, P){
-  # y1 <- first listed behavior in the data
-  y1 <- data$Behavior[1]
-  # p1 <- probabilty of starting behavior (idk where im getting this yeet)
+  ## define the variables we need for the likelihood
+  y1 <- data$Behavior[1] # first listed behavior in the provided data
+  p1 <- c(rep(1/12, 12)) #probability of starting behavior (doing uniform for now)
   
-  # t <- behavior (is t our index?)
-  # yt <-  vector of 0s and 1s that tell us what behavior we are at (idk how to this)
+  # t <-  (is t our index for a for loop?) --> index for loop over time (using duration?)
+  # yt <-  vector of 0s and 1s that tell us what behavior we are at (idk how to this) dummy variable?
   
   ## pick out a particular row of P (a vector of probabilities)
   ## this holds for behavior = 2 --> B (where B is the last listed behavior)
@@ -201,16 +202,44 @@ focal_10 <- isolate.focal(10)
 P_10 <- matrixfunct(focal_10, behaviorshortlist)
 ```
 
-Qs:
-- where am i getting p1 from (probability of being in the first behavior), does that come from the data or is that something we are going to preset as some constant vector for the  behaviors?
-- is t the index?
+
+- is t the index for the for loop?
+  -not most efficient but sure (time second by second)
 - idk how to do the yt vector that tells us which behavior it is in time t w/vector of 0s and 1
+  - basically just doing a dummy variable
 
 -for loop to define pt?
 
+- can also test this using the same focal with the same P and should give highest you can get
 
-- like somewhere there is supposed to be a part where i can put some variables like forest/road or whatever and that is included in the likelihood?
 
+
+- like somewhere there is supposed to be a part where i can put some variables like forest/road or whatever and that is included in the likelihood? im not sure where to put this
+  -ignore this for now (which will replace the ps with betas in the future)
+  
+  
+- combine some focals? get more transitions?
+
+-overall NaNs from P to 0s to make it work (for now, dont change the matrixfunct function)
+
+- pause? remove but dont want the next to be a transition?
+  - change og function to ignore PAUSE
+  - chop off focals after point of PAUSE (lose some data)
+  - split into multiple focals?
+  - choose path of least resistance rn
+____________________________________________________
+work w/Henry:
+
+- trying to simplify the log likelihood equation to avoid a really long for loop?
+- p20 in the reference book
+- change from adding over to adding over behavior?
+- each probability raised to the power of number of transitions (some will be 0 = 1)
+- can do each second or do it count of transitions 
+- (i took a picture of what henry wrote on the board so reference that as you go)
+
+
+- looking at initial probabilty 
+- 
 
 # IV. Get Behaviors
 
@@ -224,7 +253,7 @@ get_behaviors —> function(P, initial_behavior){
 	.
 	return(Behaviors)}
 	
-## V Isolate focal function
+## V. Isolate focal function
 ```{r}
 ## function to isolate a single focal & add a cumulative time column
 isolate.focal <- function(i){
