@@ -22,17 +22,13 @@ knitr::opts_chunk$set(echo = TRUE)
 # I. Packages
 
 ```{r}
-
+library(dplyr)
 ```
 
 ## data import
 
 ```{r}
-monkeyprelimdata <- read.csv("~/Desktop/monkey/monkeyprelimdata.csv")
-behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
-               "Affiliative", "Aggressive", "SelfGroom",
-               "Survey", "PAUSE", "Human Directed",
-               "Forage", "Sleep", "Play")
+monkeyprelimdata <- read.csv("~/Desktop/MonkeyProject/monkeyprelimdata.csv")
 ```
 
 # II. Transition Matrix from an Individual Focal
@@ -163,20 +159,48 @@ ___________________________________________________________________________
 ## so this function takes in some data (like a focal basically) in the form of a list of behaviors
 ## also takes P, a transition matrix, probability of going from one behavior to the next
 
+## i think i need the data to be each second to be a row in the data frame otherwise this wont work (but that would break the function to get P so needs to be done separate? maybe within the function if possible)
+
 get_LL <- function(data, P){
-  ## define the variables we need for the likelihood
-  y1 <- data$Behavior[1] # first listed behavior in the provided data
-  p1 <- c(rep(1/12, 12)) #probability of starting behavior (doing uniform for now)
+  B <- nrow(P) # number of behaviors
+  focal_length <- length(data) # number of seconds in focal (if i set it up right)
   
-  # t <-  (is t our index for a for loop?) --> index for loop over time (using duration?)
-  # yt <-  vector of 0s and 1s that tell us what behavior we are at (idk how to this) dummy variable?
-  
-  ## pick out a particular row of P (a vector of probabilities)
-  ## this holds for behavior = 2 --> B (where B is the last listed behavior)
-  # pt <- probability of going to a behavior at time t = P*y(t-1)
-  
-  
-  ## define likelihood function
+  ## create dummy variable vector for behaviors (0s and 1 corresponding to which behavior we are at)
+  # probably could do this with a for loop but like problem for later
+  # this was so not efficient and IMPORTANT: behaviorlist needs to be in the same order as mine
+  for(t in 2:focal_length){
+    y <- c()
+    y[1] <- data$Behavior[1] # first listed behavior in the provided data
+    p[1] <- c(rep(1/12, 12)) #probability of starting behavior (doing uniform for now)
+    case_when(
+      data$Behavior[t] == "Move" - ~  y <- c(1,0,0,0,0,0,0,0,0,0,0,0), 
+      data$Behavior[t] == "Vigilance" ~  y <- c(0,1,0,0,0,0,0,0,0,0,0,0),
+      data$Behavior[t] == "Feed" ~  y <- c(0,0,1,0,0,0,0,0,0,0,0,0),
+      data$Behavior[t] == "Rest" ~  y <- c(0,0,0,1,0,0,0,0,0,0,0,0),
+      data$Behavior[t] == "Affiliative" ~  y <- c(0,0,0,0,1,0,0,0,0,0,0,0),
+      data$Behavior[t] == "Aggresive" ~  y <- c(0,0,0,0,0,1,0,0,0,0,0,0),
+      data$Behavior[t] == "SelfGroom" ~  y <- c(0,0,0,0,0,0,1,0,0,0,0,0),
+      data$Behavior[t] == "Survey" ~  y <- c(0,0,0,0,0,0,0,1,0,0,0,0),
+      data$Behavior[t] == "Human Directed" ~  y <- c(0,0,0,0,0,0,0,0,1,0,0,0),
+      data$Behavior[t] == "Forage" ~  y <- c(0,0,0,0,0,0,0,0,0,1,0,0),
+      data$Behavior[t] == "Sleep" ~  y <- c(0,0,0,0,0,0,0,0,0,0,1,0),
+      data$Behavior[t] == "Play" ~  y <- c(0,0,0,0,0,0,0,0,0,0,0,1),
+    )
+    # pick out a particular row of P
+    p[t] <- P*y[t-1]
+    
+    # define log-likelihood function
+    LogL <- t(y[1])*log(p[1]) ## initialize it
+    LogL <- LogL + t(y[t])*log(p[t])
+  }
+  return(LogL)
+}
+
+## still have the problem with taking log(0) from my other attempt.....
+```
+
+
+ ## define likelihood function
   # L(theta, y) = P(y1|p1)P(y2|y1, P)P(y3|y2, P) .....
   #          = P(y1|p1)*product(P(yt|y(t-1), P))
             
@@ -188,25 +212,55 @@ get_LL <- function(data, P){
   # P(y1|p1) = P11 ^ y11 * P12^y12 * ..... * P1B^y1B
   # log(^^) = y1^tlog(p1)
   
-  return(LogL)
+```{r}
+## i got lost in the sauce i'm gonna try something way simpler? see if it works?
+# i think this would maybe work if i can get a function to automatically expand the duration to just 1 second over and over
+
+## so this is not working for many reasons but idk if this is a simpler base to troubleshoot from but im just gonna leave that here and try the other one again
+
+get_LL.2 <- function(data, P){
+  B <- nrow(P) # number of behaviors
+  focal_length <- length(data) # number of seconds in focal (if i set it up right)
+  
+  
+  for(t in 2:focal_length){
+    current_state <- data$Behavior[t-1]
+    next_state <- data$Behavior[t]
+    
+    trans_prob <- P[current_state, next_state] #i dont think its set up like this rn w/names in P
+    
+    ll_value <- 0 #start
+    ll_value <- ll_value + log(trans_prob) ## problem with taking log of 0
+  }
+  return(ll_value)
 }
+
+# so i lost p1 somewhere in there i think
+# also feel like i should have used my B? oh wait that's what i would use if i didnt split up the seconds thing and instead utilized duration
+
 ```
+
+
 
 ```{r}
 ## ok im gonna train it on focal 28 and then use focal 10 as the input data?
 
 P_28 <- matrixfunct(focal_28, behaviorshortlist)
 P_28
+P_28[is.na(P_28)] <- 0 ## get rid of NaNs
 
 focal_10 <- isolate.focal(10)
 P_10 <- matrixfunct(focal_10, behaviorshortlist)
+
+get_LL.2(focal_10, P_28) ## didnt work 
+  ## are the NAs a problem?
+  ## i got rid of them and it still didnt work
+  ## taking log of 0? undefined? yeah thats the problem
 ```
 
 
 - is t the index for the for loop?
   -not most efficient but sure (time second by second)
-- idk how to do the yt vector that tells us which behavior it is in time t w/vector of 0s and 1
-  - basically just doing a dummy variable
 
 -for loop to define pt?
 
@@ -217,7 +271,6 @@ P_10 <- matrixfunct(focal_10, behaviorshortlist)
 - like somewhere there is supposed to be a part where i can put some variables like forest/road or whatever and that is included in the likelihood? im not sure where to put this
   -ignore this for now (which will replace the ps with betas in the future)
   
-  
 - combine some focals? get more transitions?
 
 -overall NaNs from P to 0s to make it work (for now, dont change the matrixfunct function)
@@ -227,6 +280,7 @@ P_10 <- matrixfunct(focal_10, behaviorshortlist)
   - chop off focals after point of PAUSE (lose some data)
   - split into multiple focals?
   - choose path of least resistance rn
+  - for rn im just going to choose focals that dont have PAUSE and i will deal with that later :)
 ____________________________________________________
 work w/Henry:
 
