@@ -14,15 +14,13 @@ knitr::opts_chunk$set(echo = TRUE)
 * II. Transition Matrix from an Individual Focal
 * III. New Function: Get Log-Likelihood
   - III.1 Pseudo-Code
-  - III.2 Code Attempts
-* IV. New Function: Get Behaviors
-  - IV.1 Pseudo-Code
-* V. Isolate Focal Function
+  - III.2 Code Attempts/notes idk
+* IV. Isolate Focal Function
 
 # I. Packages
 
 ```{r}
-library(dplyr)
+library(dplyr) ## need for case_when in get_ll function
 ```
 
 ## data import
@@ -170,6 +168,7 @@ get_LL <- function(data, P){
   # this was so not efficient and IMPORTANT: behaviorlist needs to be in the same order as mine
   for(t in 2:focal_length){
     y <- c()
+    ### i need to like define p or something here
     y[1] <- data$Behavior[1] # first listed behavior in the provided data
     p[1] <- c(rep(1/12, 12)) #probability of starting behavior (doing uniform for now)
     case_when(
@@ -196,10 +195,18 @@ get_LL <- function(data, P){
   return(LogL)
 }
 
-## still have the problem with taking log(0) from my other attempt.....
+## still have the problem with taking log(0) .....
 ```
 
+New problems to discuss with Henry:
+- i'm having an issue defining p? i think im just missing like one line to initialize p
+- is the log(0) thing an actual problem or am i being silly and not conceptually understanding likelihood
+- recommendations on how to reformat the data to give it second by second? or would it be easier to change it by behavior rather than second? is that a function worth having? i dont think it should be too hard to just change it by behavior i think
+- are we still working with discrete markov chains? i feel like the goal at some point was to make it continous?
+- am i good to use other packages within this or were we trying to make functions that dont rely on any other package?
 
+
+Notes:
  ## define likelihood function
   # L(theta, y) = P(y1|p1)P(y2|y1, P)P(y3|y2, P) .....
   #          = P(y1|p1)*product(P(yt|y(t-1), P))
@@ -212,34 +219,6 @@ get_LL <- function(data, P){
   # P(y1|p1) = P11 ^ y11 * P12^y12 * ..... * P1B^y1B
   # log(^^) = y1^tlog(p1)
   
-```{r}
-## i got lost in the sauce i'm gonna try something way simpler? see if it works?
-# i think this would maybe work if i can get a function to automatically expand the duration to just 1 second over and over
-
-## so this is not working for many reasons but idk if this is a simpler base to troubleshoot from but im just gonna leave that here and try the other one again
-
-get_LL.2 <- function(data, P){
-  B <- nrow(P) # number of behaviors
-  focal_length <- length(data) # number of seconds in focal (if i set it up right)
-  
-  
-  for(t in 2:focal_length){
-    current_state <- data$Behavior[t-1]
-    next_state <- data$Behavior[t]
-    
-    trans_prob <- P[current_state, next_state] #i dont think its set up like this rn w/names in P
-    
-    ll_value <- 0 #start
-    ll_value <- ll_value + log(trans_prob) ## problem with taking log of 0
-  }
-  return(ll_value)
-}
-
-# so i lost p1 somewhere in there i think
-# also feel like i should have used my B? oh wait that's what i would use if i didnt split up the seconds thing and instead utilized duration
-
-```
-
 
 
 ```{r}
@@ -252,27 +231,17 @@ P_28[is.na(P_28)] <- 0 ## get rid of NaNs
 focal_10 <- isolate.focal(10)
 P_10 <- matrixfunct(focal_10, behaviorshortlist)
 
-get_LL.2(focal_10, P_28) ## didnt work 
-  ## are the NAs a problem?
-  ## i got rid of them and it still didnt work
-  ## taking log of 0? undefined? yeah thats the problem
 ```
 
 
-- is t the index for the for loop?
-  -not most efficient but sure (time second by second)
-
--for loop to define pt?
-
 - can also test this using the same focal with the same P and should give highest you can get
-
-
-
-- like somewhere there is supposed to be a part where i can put some variables like forest/road or whatever and that is included in the likelihood? im not sure where to put this
-  -ignore this for now (which will replace the ps with betas in the future)
   
 - combine some focals? get more transitions?
 
+#### Resolved things (that arent really resolved but im kinda just ignoring for now):
+
+- like somewhere there is supposed to be a part where i can put some variables like forest/road or whatever and that is included in the likelihood? im not sure where to put this
+  -ignore this for now (which will replace the ps with betas in the future)
 -overall NaNs from P to 0s to make it work (for now, dont change the matrixfunct function)
 
 - pause? remove but dont want the next to be a transition?
@@ -291,23 +260,8 @@ work w/Henry:
 - can do each second or do it count of transitions 
 - (i took a picture of what henry wrote on the board so reference that as you go)
 
-
-- looking at initial probabilty 
-- 
-
-# IV. Get Behaviors
-
-## IV.1 Pseudo-Code
-
-from henry:
-
-get_behaviors —> function(P, initial_behavior){
-	.
-	.
-	.
-	return(Behaviors)}
 	
-## V. Isolate focal function
+## IV. Isolate focal function
 ```{r}
 ## function to isolate a single focal & add a cumulative time column
 isolate.focal <- function(i){
