@@ -154,72 +154,50 @@ so we take our function and tweak it to have betas instead of Ps
 ___________________________________________________________________________
 ## III.2 Code Attempts
 ```{r}
-## so this function takes in some data (like a focal basically) in the form of a list of behaviors
-## also takes P, a transition matrix, probability of going from one behavior to the next
+## note that you need the same order of behaviors that I have (probs can change that later)
+behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
+               "Affiliative", "Aggressive", "SelfGroom",
+               "Survey", "Human Directed",
+               "Forage", "Sleep", "Play") 
 
-## i think i need the data to be each second to be a row in the data frame otherwise this wont work (but that would break the function to get P so needs to be done separate? maybe within the function if possible)
-
-get_LL <- function(data, P){
+## functions takes data (a focal) and P (a transition matrix)
+get_ll <- function(data, P){
   B <- nrow(P) # number of behaviors
-  focal_length <- length(data) # number of seconds in focal (if i set it up right)
+  y <- behaviorshortlist
+  ymatrix <- model.matrix(~y - 1)
   
-  ## create dummy variable vector for behaviors (0s and 1 corresponding to which behavior we are at)
-  # probably could do this with a for loop but like problem for later
-  # this was so not efficient and IMPORTANT: behaviorlist needs to be in the same order as mine
-  for(t in 2:focal_length){
-    y <- c()
-    ### i need to like define p or something here
-    y[1] <- data$Behavior[1] # first listed behavior in the provided data
-    p[1] <- c(rep(1/12, 12)) #probability of starting behavior (doing uniform for now)
-    case_when(
-      data$Behavior[t] == "Move" - ~  y <- c(1,0,0,0,0,0,0,0,0,0,0,0), 
-      data$Behavior[t] == "Vigilance" ~  y <- c(0,1,0,0,0,0,0,0,0,0,0,0),
-      data$Behavior[t] == "Feed" ~  y <- c(0,0,1,0,0,0,0,0,0,0,0,0),
-      data$Behavior[t] == "Rest" ~  y <- c(0,0,0,1,0,0,0,0,0,0,0,0),
-      data$Behavior[t] == "Affiliative" ~  y <- c(0,0,0,0,1,0,0,0,0,0,0,0),
-      data$Behavior[t] == "Aggresive" ~  y <- c(0,0,0,0,0,1,0,0,0,0,0,0),
-      data$Behavior[t] == "SelfGroom" ~  y <- c(0,0,0,0,0,0,1,0,0,0,0,0),
-      data$Behavior[t] == "Survey" ~  y <- c(0,0,0,0,0,0,0,1,0,0,0,0),
-      data$Behavior[t] == "Human Directed" ~  y <- c(0,0,0,0,0,0,0,0,1,0,0,0),
-      data$Behavior[t] == "Forage" ~  y <- c(0,0,0,0,0,0,0,0,0,1,0,0),
-      data$Behavior[t] == "Sleep" ~  y <- c(0,0,0,0,0,0,0,0,0,0,1,0),
-      data$Behavior[t] == "Play" ~  y <- c(0,0,0,0,0,0,0,0,0,0,0,1),
-    )
-    # pick out a particular row of P
-    p[t] <- P*y[t-1]
-    
-    # define log-likelihood function
-    LogL <- t(y[1])*log(p[1]) ## initialize it
-    LogL <- LogL + t(y[t])*log(p[t])
+  ## build a Y Duration Matrix (which is just P without the denominator I think)
+  Yduration <- matrix(NA, nrow = length(behaviorshortlist), ncol = length(behaviorshortlist))
+  rownames(Yduration) <- colnames(Yduration) <- behaviorshortlist
+  for(b1 in behaviorshortlist){
+    denomentator <- sum(data$TimeSpent[data$Behavior == b1]) - 
+      as.numeric(tail(data$Behavior, 1) == b1)
+    b1_ind <- which(data$Behavior == b1)
+    for(b2 in behaviorshortlist){
+      if(b1 == b2){
+        numerator <- denomentator - sum(data$Behavior == b1) + 
+          as.numeric(tail(data$Behavior, 1) == b1) 
+        } else { 
+          numerator <- sum(data$Behavior[b1_ind + 1] == b2, na.rm = T)
+          }
+      Yduration[b1,b2] <- numerator
+    }
   }
-  return(LogL)
+  
+  LogL <- sum((log(P)*Yduration)[Yduration>0])
+  
+  if(is.na(LogL)){
+    return(-Inf)
+  } else {
+    return(LogL)
+  }
 }
-
-## still have the problem with taking log(0) .....
 ```
 
-New problems to discuss with Henry:
-- i'm having an issue defining p? i think im just missing like one line to initialize p
-- is the log(0) thing an actual problem or am i being silly and not conceptually understanding likelihood
-- recommendations on how to reformat the data to give it second by second? or would it be easier to change it by behavior rather than second? is that a function worth having? i dont think it should be too hard to just change it by behavior i think
-- are we still working with discrete markov chains? i feel like the goal at some point was to make it continous?
-- am i good to use other packages within this or were we trying to make functions that dont rely on any other package?
 
-
-Notes:
- ## define likelihood function
-  # L(theta, y) = P(y1|p1)P(y2|y1, P)P(y3|y2, P) .....
-  #          = P(y1|p1)*product(P(yt|y(t-1), P))
-            
-  #          inner product of y1^t*p1
-  #          (y1^t*p1)(yT*P*y(T-1)).....(y2*P*y(2-1))
   
-  ## make it a log-likelihood
-  # LogL <- log(L) = sum of logs = log(y1^t*p1) + log(yT*P*y(T-1)) + ......
-  # P(y1|p1) = P11 ^ y11 * P12^y12 * ..... * P1B^y1B
-  # log(^^) = y1^tlog(p1)
-  
-
+- see if this likelihood thing works within the optim function once i get it working (optim is "quirky" so look up examples)
+  - optim does min not max so gonna need the opposite or whatever
 
 ```{r}
 ## ok im gonna train it on focal 28 and then use focal 10 as the input data?
@@ -230,13 +208,19 @@ P_28[is.na(P_28)] <- 0 ## get rid of NaNs
 
 focal_10 <- isolate.focal(10)
 P_10 <- matrixfunct(focal_10, behaviorshortlist)
+P_10[is.na(P_10)] <- 0 ## get rid of NaNs
 
+get_ll(focal_10, P_28) ## so this gave -inf which makes sense but im realizing a flaw in testing bc all of the transition have like missing values (0s) so its always going to be like no???
+
+get_ll(focal_10, P_10)
+
+P_fake <- matrix(1/12, 12, 12) ## cant have 0 probability for a transition that we do observe
+focal_1 <- isolate.focal(1)
+
+get_ll(focal_1, P_fake)
 ```
 
-
-- can also test this using the same focal with the same P and should give highest you can get
-  
-- combine some focals? get more transitions?
+- lmao henry found a package that does the thing i spent a month trying to make work
 
 #### Resolved things (that arent really resolved but im kinda just ignoring for now):
 
@@ -251,15 +235,6 @@ P_10 <- matrixfunct(focal_10, behaviorshortlist)
   - choose path of least resistance rn
   - for rn im just going to choose focals that dont have PAUSE and i will deal with that later :)
 ____________________________________________________
-work w/Henry:
-
-- trying to simplify the log likelihood equation to avoid a really long for loop?
-- p20 in the reference book
-- change from adding over to adding over behavior?
-- each probability raised to the power of number of transitions (some will be 0 = 1)
-- can do each second or do it count of transitions 
-- (i took a picture of what henry wrote on the board so reference that as you go)
-
 	
 ## IV. Isolate focal function
 ```{r}
