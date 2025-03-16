@@ -1,0 +1,77 @@
+---
+title: "Using depmixS4"
+author: "Josephine Ward"
+date: "2025-03-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+____________________________________________________________________
+# 0. ToC
+* I. Setup
+* II. Notes
+* III. Application Attempts
+
+____________________________________________________________________
+# I. Setup
+```{r}
+## setup
+install.packages("depmixS4") ## note there are a bunch of dependent packages
+library(depmixS4)
+
+data <- monkeyprelimdata <- read.csv("~/Desktop/MonkeyProject/monkeyprelimdata.csv")
+
+y <- behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
+               "Affiliative", "Aggressive", "SelfGroom",
+               "Survey", "Human Directed",
+               "Forage", "Sleep", "Play") 
+```
+
+
+____________________________________________________________________
+# II. Notes
+Notes: 
+“Dependent mixture models”
+
+- Package goals relevant to us
+    - Estimate parameter subject to general linear (in)equality constraints;
+    - Fit transition models w/covariates (time-dependent transition matrices)
+    - Include covariates in the prior or initial state probabilities 
+- Longitudinal/time series data
+- Expectation-maximization (EM) algorithm
+- 2 steps for using this package
+    - 1. Specify model with function “depmix”
+    - 2. model fitting w/function “fit”
+    - Separated bc good place to check work for time-consuming things
+- Functions we may want to use:
+    - “depmix” defines the model
+        - Then just calling fit on that model should give us the log likelihood 
+        - Summary should give the initial state and the transition matrix?
+            - Note check if the transition matrix matches
+
+____________________________________________________________________
+# III. Application Attempts
+
+```{r}
+## gonna run it with their data first to test it
+
+mod.ex <- depmix(response = rt ~ 1, data = speed, nstates = 2, trstart = runif(4))
+fm.ex <- fit(mod.ex, emc = em.control(rand = FALSE))
+summary(fm.ex)
+
+## that worked as expected nice :)
+
+## apply to our data
+set.seed(2025)
+# model <- depmix(response = Behavior ~ 1, data = data, nstates = 12, 
+#                trstart = runif(12))
+## so that didnt work and I think it may be an issue bc our reponse is categorical?
+
+## error in "transInit which i think is part of the response variable, specifically the pstart = 12
+
+fit <- fit(model, emc=em.control(rand=FALSE))
+summary(fit)
+```
+
