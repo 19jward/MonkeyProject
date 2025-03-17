@@ -249,3 +249,23 @@ isolate.focal <- function(i){
 # test
 focal_28 <- isolate.focal(28)
 ```
+
+
+## Henry optim chat ----
+
+```{r}
+
+get_ll <- function(X, mu, sigma){
+  if(sigma < 0) return(-Inf)
+  sum(dnorm(X, mean = mu, sd = sigma, log = T))
+}
+
+get_ll(c(1, 2, 3, 4), mu = 2.3, sigma = 1)
+
+fit <- optim(par = c(0, 5), fn = function(par, X){
+  get_ll(X, mu = par[1], sigma = par[2])
+}, X = c(1, 2, 3, 4), control = c(fnscale = -1))
+
+fit
+
+```
