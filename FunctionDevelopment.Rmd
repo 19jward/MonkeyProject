@@ -16,6 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
   - III.1 Pseudo-Code
   - III.2 Code Attempts/notes idk
 * IV. Isolate Focal Function
+* V. Optimizing LL
 
 # I. Packages
 
@@ -86,17 +87,6 @@ If you’ve made behaviors w/particular P, does it give you close to the highest
 2. Check get_LL is maximized close to P
 Then optim function will help us with maximization
 
-________________________________________________________________________
-
-so we want the likelhood --> probability of being in any particular behavior (function of parameters given data)
-
-so this function needs to take in data and calculate probability of being in each of the behaviors
-
-
-optim() function for optimization (so like do the derivative part for me once i have the equation?)
-
-toy examples for the package (vignettes)
-
 ___________________________________________________________________________
 work w/Henry during the meeting:
 
@@ -161,7 +151,7 @@ behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
                "Forage", "Sleep", "Play") 
 
 ## functions takes data (a focal) and P (a transition matrix)
-get_ll <- function(data, P){
+get_ll <- function(data, P, behaviorshortlist){
   B <- nrow(P) # number of behaviors
   y <- behaviorshortlist
   ymatrix <- model.matrix(~y - 1)
@@ -195,10 +185,6 @@ get_ll <- function(data, P){
 ```
 
 
-  
-- see if this likelihood thing works within the optim function once i get it working (optim is "quirky" so look up examples)
-  - optim does min not max so gonna need the opposite or whatever
-
 ```{r}
 ## ok im gonna train it on focal 28 and then use focal 10 as the input data?
 
@@ -219,8 +205,6 @@ focal_1 <- isolate.focal(1)
 
 get_ll(focal_1, P_fake)
 ```
-
-- lmao henry found a package that does the thing i spent a month trying to make work
 
 #### Resolved things (that arent really resolved but im kinda just ignoring for now):
 
@@ -249,3 +233,70 @@ isolate.focal <- function(i){
 # test
 focal_28 <- isolate.focal(28)
 ```
+
+# V. Optimizing LL
+
+## Henry optim chat ----
+
+```{r}
+
+get_ll.h <- function(X, mu, sigma){
+  if(sigma < 0) return(-Inf)
+  sum(dnorm(X, mean = mu, sd = sigma, log = T))
+}
+
+get_ll.h(c(1, 2, 3, 4), mu = 2.3, sigma = 1)
+
+fit.h <- optim(par = c(0, 5), fn = function(par, X){
+  get_ll.h(X, mu = par[1], sigma = par[2])
+}, X = c(1, 2, 3, 4), control = c(fnscale = -1))
+
+fit.h
+
+```
+
+## applying to our function (start with 1 term???)
+```{r}
+## so get_ll takes a focal and a transition matrix, we want to try to optimize just one of the transitions to start?? so it would have to be a row/1 behavior?? not 100% sure what we mean by starting with 1
+
+## maybe i do this with a fake little dataset to see if it works (3 behaviors)
+
+fake_behaviors <- c("move", "feed", "move", "sleep", "feed", "sleep", "move", "sleep", "move")
+fake_duration <- c(5, 10, 4, 102, 16, 58, 14, 9, 11) 
+X <- fake_data <- data.frame(fake_duration, fake_behaviors)
+colnames(X) <- c("TimeSpent", "Behavior") ## match my fake one to work with the matrixfunctions i made
+
+fake_behaviorshortlist <- c("move", "sleep", "feed")
+Pf <- matrixfunct(X, fake_behaviorshortlist) ## transition matrix of fake focal
+
+get_ll(X, Pf, fake_behaviorshortlist) ## wow great news the function works love that
+## note i modified the LL function to add the list of behaviors as an input so i can do mini tests/if we add or remove any behaviors?
+
+## but now i want to optimize the P (so like its unknown)
+## par is the intiial values (starting point to optimize from)
+## fn is the function to be maximized (our logLL function)
+## then we can have further arguments that get passed to fn (so that would be our X?)
+## control is scaling it bc optim likes to minimize and we want to optimize
+
+fit <- optim(par = Pf, fn = function(par, X){
+  get_ll(X, par, fake_behaviorshortlist)}, X = fake_data, control = c(fnscale = -1))
+
+## what a fun number of NA warnings
+## try next: not using the pf
+
+initial_matrix_fake <- matrix(c(0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4), 
+                              nrow = 3, ncol = 3)
+row.names(initial_matrix_fake) <- fake_behaviorshortlist
+colnames(initial_matrix_fake) <- fake_behaviorshortlist
+
+fit <- optim(par = initial_matrix_fake, fn = function(par, X){
+  get_ll(X, par, fake_behaviorshortlist)}, X = fake_data, control = c(fnscale = -1))
+
+## yeah thats not the problem here
+
+## realizing idk what is actually meant by starting with one term
+## ok im being silly and i think this actually needs a loop for each entry right???
+
+
+```
+
