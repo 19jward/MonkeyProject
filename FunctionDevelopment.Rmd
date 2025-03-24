@@ -234,25 +234,17 @@ isolate.focal <- function(i){
 focal_28 <- isolate.focal(28)
 ```
 
-<<<<<<< HEAD
 # V. Optimizing LL
-=======
->>>>>>> 25199879d63856278acd09d2338f64e4ebe1b9cc
+
 
 ## Henry optim chat ----
 
 ```{r}
-
-<<<<<<< HEAD
 get_ll.h <- function(X, mu, sigma){
-=======
-get_ll <- function(X, mu, sigma){
->>>>>>> 25199879d63856278acd09d2338f64e4ebe1b9cc
   if(sigma < 0) return(-Inf)
   sum(dnorm(X, mean = mu, sd = sigma, log = T))
 }
 
-<<<<<<< HEAD
 get_ll.h(c(1, 2, 3, 4), mu = 2.3, sigma = 1)
 
 fit.h <- optim(par = c(0, 5), fn = function(par, X){
@@ -305,17 +297,6 @@ fit <- optim(par = initial_matrix_fake, fn = function(par, X){
 ## realizing idk what is actually meant by starting with one term
 ## ok im being silly and i think this actually needs a loop for each entry right???
 
-
 ```
 
-=======
-get_ll(c(1, 2, 3, 4), mu = 2.3, sigma = 1)
-
-fit <- optim(par = c(0, 5), fn = function(par, X){
-  get_ll(X, mu = par[1], sigma = par[2])
-}, X = c(1, 2, 3, 4), control = c(fnscale = -1))
-
-fit
-
-```
->>>>>>> 25199879d63856278acd09d2338f64e4ebe1b9cc
+I messed up the git somewhere :)
