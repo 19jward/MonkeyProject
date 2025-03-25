@@ -151,19 +151,19 @@ behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
                "Forage", "Sleep", "Play") 
 
 ## functions takes data (a focal) and P (a transition matrix)
-get_ll <- function(data, P, behaviorshortlist){
+get_ll <- function(data, P, behavior_list){
   B <- nrow(P) # number of behaviors
-  y <- behaviorshortlist
+  y <- behavior_list
   ymatrix <- model.matrix(~y - 1)
   
   ## build a Y Duration Matrix (which is just P without the denominator I think)
-  Yduration <- matrix(NA, nrow = length(behaviorshortlist), ncol = length(behaviorshortlist))
-  rownames(Yduration) <- colnames(Yduration) <- behaviorshortlist
-  for(b1 in behaviorshortlist){
+  Yduration <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))
+  rownames(Yduration) <- colnames(Yduration) <- behavior_list
+  for(b1 in behavior_list){
     denomentator <- sum(data$TimeSpent[data$Behavior == b1]) - 
       as.numeric(tail(data$Behavior, 1) == b1)
     b1_ind <- which(data$Behavior == b1)
-    for(b2 in behaviorshortlist){
+    for(b2 in behavior_list){
       if(b1 == b2){
         numerator <- denomentator - sum(data$Behavior == b1) + 
           as.numeric(tail(data$Behavior, 1) == b1) 
@@ -255,30 +255,28 @@ fit.h
 
 ```
 
-## applying to our function (start with 1 term???)
+## applying to our function
 ```{r}
-## so get_ll takes a focal and a transition matrix, we want to try to optimize just one of the transitions to start?? so it would have to be a row/1 behavior?? not 100% sure what we mean by starting with 1
-
-## maybe i do this with a fake little dataset to see if it works (3 behaviors)
+## fake dataset (3 behaviors only)
 
 fake_behaviors <- c("move", "feed", "move", "sleep", "feed", "sleep", "move", "sleep", "move")
 fake_duration <- c(5, 10, 4, 102, 16, 58, 14, 9, 11) 
 X <- fake_data <- data.frame(fake_duration, fake_behaviors)
-colnames(X) <- c("TimeSpent", "Behavior") ## match my fake one to work with the matrixfunctions i made
+colnames(X) <- colnames(fake_data) <- c("TimeSpent", "Behavior") ## match my fake one to work with the matrixfunctions
 
 fake_behaviorshortlist <- c("move", "sleep", "feed")
 Pf <- matrixfunct(X, fake_behaviorshortlist) ## transition matrix of fake focal
 
-get_ll(X, Pf, fake_behaviorshortlist) ## wow great news the function works love that
-## note i modified the LL function to add the list of behaviors as an input so i can do mini tests/if we add or remove any behaviors?
+get_ll(X, Pf, fake_behaviorshortlist) 
+## note i modified the LL function to add the list of behaviors as an input so i can do mini tests/if we add or remove any behaviors
 
 ## but now i want to optimize the P (so like its unknown)
-## par is the intiial values (starting point to optimize from)
+## par is the intial values (starting point to optimize from)
 ## fn is the function to be maximized (our logLL function)
 ## then we can have further arguments that get passed to fn (so that would be our X?)
 ## control is scaling it bc optim likes to minimize and we want to optimize
 
-
+## make the optim thing within another function to make it simpler to use (note: add to package)
 fit_MM <- function(X, behavior_list, par = matrix(1/length(behavior_list), 
                                                   nrow = length(behavior_list), 
                                                   ncol = length(behavior_list) - 1)){
@@ -300,22 +298,9 @@ fit_MM <- function(X, behavior_list, par = matrix(1/length(behavior_list),
 fit_MM(X, fake_behaviorshortlist)
 Pf
 
-## what a fun number of NA warnings
-## try next: not using the pf
-
+## fake initial matrix
 initial_matrix_fake <- matrix(c(0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4), 
                               nrow = 3, ncol = 3)
 row.names(initial_matrix_fake) <- fake_behaviorshortlist
 colnames(initial_matrix_fake) <- fake_behaviorshortlist
-
-fit <- optim(par = initial_matrix_fake, fn = function(par, X){
-  get_ll(X, par, fake_behaviorshortlist)}, X = X, control = c(fnscale = -1))
-
-## yeah thats not the problem here
-
-## realizing idk what is actually meant by starting with one term
-## ok im being silly and i think this actually needs a loop for each entry right???
-
 ```
-
-I messed up the git somewhere :)

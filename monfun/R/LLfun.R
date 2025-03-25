@@ -1,23 +1,16 @@
-## note that you need the same order of behaviors that I have (probs can change that later)
-behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
-                      "Affiliative", "Aggressive", "SelfGroom",
-                      "Survey", "Human Directed",
-                      "Forage", "Sleep", "Play") 
-
-## functions takes data (a focal) and P (a transition matrix)
-get_ll <- function(data, P){
+get_ll <- function(data, P, behavior_list){
   B <- nrow(P) # number of behaviors
-  y <- behaviorshortlist
+  y <- behavior_list
   ymatrix <- model.matrix(~y - 1)
   
   ## build a Y Duration Matrix (which is just P without the denominator I think)
-  Yduration <- matrix(NA, nrow = length(behaviorshortlist), ncol = length(behaviorshortlist))
-  rownames(Yduration) <- colnames(Yduration) <- behaviorshortlist
-  for(b1 in behaviorshortlist){
+  Yduration <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))
+  rownames(Yduration) <- colnames(Yduration) <- behavior_list
+  for(b1 in behavior_list){
     denomentator <- sum(data$TimeSpent[data$Behavior == b1]) - 
       as.numeric(tail(data$Behavior, 1) == b1)
     b1_ind <- which(data$Behavior == b1)
-    for(b2 in behaviorshortlist){
+    for(b2 in behavior_list){
       if(b1 == b2){
         numerator <- denomentator - sum(data$Behavior == b1) + 
           as.numeric(tail(data$Behavior, 1) == b1) 
