@@ -17,6 +17,8 @@ knitr::opts_chunk$set(echo = TRUE)
   - III.2 Code Attempts/notes idk
 * IV. Isolate Focal Function
 * V. Optimizing LL
+  - V.I Function
+  - V.II Testing/Applying Function
 
 # I. Packages
 
@@ -236,8 +238,9 @@ focal_28 <- isolate.focal(28)
 
 # V. Optimizing LL
 
+## V.1 Creating Function
 
-## Henry optim chat ----
+### Henry optim chat ----
 
 ```{r}
 get_ll.h <- function(X, mu, sigma){
@@ -255,7 +258,7 @@ fit.h
 
 ```
 
-## applying to our function
+### applying to our log_ll function
 ```{r}
 ## fake dataset (3 behaviors only)
 
@@ -268,7 +271,6 @@ fake_behaviorshortlist <- c("move", "sleep", "feed")
 Pf <- matrixfunct(X, fake_behaviorshortlist) ## transition matrix of fake focal
 
 get_ll(X, Pf, fake_behaviorshortlist) 
-## note i modified the LL function to add the list of behaviors as an input so i can do mini tests/if we add or remove any behaviors
 
 ## but now i want to optimize the P (so like its unknown)
 ## par is the intial values (starting point to optimize from)
@@ -276,7 +278,7 @@ get_ll(X, Pf, fake_behaviorshortlist)
 ## then we can have further arguments that get passed to fn (so that would be our X?)
 ## control is scaling it bc optim likes to minimize and we want to optimize
 
-## make the optim thing within another function to make it simpler to use (note: add to package)
+## make the optim thing within another function to make it simpler to use
 fit_MM <- function(X, behavior_list, par = matrix(1/length(behavior_list), 
                                                   nrow = length(behavior_list), 
                                                   ncol = length(behavior_list) - 1)){
@@ -304,3 +306,76 @@ initial_matrix_fake <- matrix(c(0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4),
 row.names(initial_matrix_fake) <- fake_behaviorshortlist
 colnames(initial_matrix_fake) <- fake_behaviorshortlist
 ```
+
+
+## V.II Applications
+
+- trying different numbers of behaviors & different length focals to see where it breaks (it broke immediatly oops)
+
+### Entire Focal
+- nope :)
+```{r}
+## throwing entire focal in there - returned a uniform 12x12 matrix (didnt even try??)
+test <- fit_MM(focal_10, behaviorshortlist)
+test
+```
+
+### 3 behaviors
+- works great
+```{r}
+## 3 behaviors - works really well
+test3 <- fit_MM(X, fake_behaviorshortlist)
+test3 
+```
+
+### 4 behaviors
+- oop we broke, that didn't take long
+- but still no warnings or errors....
+```{r}
+## 4 behaviors - works but not accurate??
+fake_behaviors4 <- c("move", "feed", "vigilance", "move", "sleep", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "vigilance", "sleep")
+fake_duration4 <- c(5, 10, 10, 3, 120, 30, 45, 140, 30, 200, 80, 100, 80) 
+fake_data4 <- data.frame(fake_duration4, fake_behaviors4)
+colnames(fake_data4) <- c("TimeSpent", "Behavior") 
+fake_behaviorlist4 <- c("move", "sleep", "feed", "vigilance")
+
+test4 <- fit_MM(fake_data4, fake_behaviorlist4)
+test4
+
+## accuracy check - oof, immediate rough accuracy
+tm4 <- matrixfunct(fake_data4, fake_behaviorlist4)
+tm4
+```
+
+### 5 behaviors
+- yeah none of this works past  behaviors
+- seems to be just sticking close to the uniform and is heading towards the just returning uniform, why??????
+- i mean the good news is the most common behaviors we see are just move, feed, and sleep
+- but getting it to work would be great
+- it looks like the optimized doesnt want to give back 0 for any which is throwing it off a lot
+```{r}
+## 5 behaviors
+fake_behaviors5 <- c("move", "feed", "aggresive", "vigilance", "move", "sleep", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "sleep", "move", "feed", "move", "feed", "aggressive", "move",
+                     "aggressive", "move", "feed", "move", "sleep")
+fake_duration5 <- c(10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10, 200, 23, 78, 20, 
+                    45, 90, 20, 10, 45, 45, 30, 10) 
+fake_data5 <- data.frame(fake_duration5, fake_behaviors5)
+colnames(fake_data5) <- c("TimeSpent", "Behavior") 
+fake_behaviorlist5 <- c("move", "sleep", "feed", "vigilance", "aggressive")
+
+test5 <- fit_MM(fake_data5, fake_behaviorlist5)
+test5
+
+## accuracy check 
+tm5 <- matrixfunct(fake_data5, fake_behaviorlist5)
+tm5
+```
+
+### things to add but like its not working anyway rn
+
+- Adding confidence intervals (hessian thing)
+- Add uncertainty/predictors (add something to code before get_ll??)
+- Map covariates to P
