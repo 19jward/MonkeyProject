@@ -29,3 +29,7 @@ get_ll <- function(data, P, behavior_list){
     return(LogL)
   }
 }
+
+get_ll_row <- function(data, p_row, row_behavior, behavior_list){
+  # for a fixed row_behavior = b1, find likelihood component
+}
