@@ -21,16 +21,6 @@ fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list),
     ## loop over rows
     ## optim(get_ll_row, ) -> fit and uncertainty
     ## recombine
-    ##
+    ## (working on this on the functional development rmd)
   }
 }
-
-# ## covariates first step
-# covariates2prob <- function(beta, X){
-#   
-# ## multinomial logit link
-#   # eta = x * beta_ij
-#   # p = eta / rowsums(eta)
-#   
-#   return(prob)
-# }

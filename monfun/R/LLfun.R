@@ -1,18 +1,14 @@
 get_ll <- function(data, P, behavior_list){
-  B <- nrow(P) # number of behaviors
-  y <- behavior_list
-  ymatrix <- model.matrix(~y - 1)
-  
-  ## build a Y Duration Matrix (which is just P without the denominator I think)
+  ## build a Y Duration Matrix (P without the denominator)
   Yduration <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))
   rownames(Yduration) <- colnames(Yduration) <- behavior_list
   for(b1 in behavior_list){
-    denomentator <- sum(data$TimeSpent[data$Behavior == b1]) - 
+    denomenator <- sum(data$TimeSpent[data$Behavior == b1]) - 
       as.numeric(tail(data$Behavior, 1) == b1)
     b1_ind <- which(data$Behavior == b1)
     for(b2 in behavior_list){
       if(b1 == b2){
-        numerator <- denomentator - sum(data$Behavior == b1) + 
+        numerator <- denomenator - sum(data$Behavior == b1) + 
           as.numeric(tail(data$Behavior, 1) == b1) 
       } else { 
         numerator <- sum(data$Behavior[b1_ind + 1] == b2, na.rm = T)
@@ -28,8 +24,4 @@ get_ll <- function(data, P, behavior_list){
   } else {
     return(LogL)
   }
-}
-
-get_ll_row <- function(data, p_row, row_behavior, behavior_list){
-  # for a fixed row_behavior = b1, find likelihood component
 }

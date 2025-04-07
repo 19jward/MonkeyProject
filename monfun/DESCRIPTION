@@ -2,10 +2,10 @@ Package: monfun
 Type: Package
 Title: For Monkey Project w/Henry
 Version: 0.1.0
-Author: Josephine Ward
+Author: Josephine Ward & Henry Scharf
 Maintainer: The package maintainer <josephineward@arizona.edu>
 Description: Basic convenience functions for the monkey project
-    Has the isolate focal function, transition matrix, and logLL (depmix probably works better for last 2)
+    Has the isolate focal function, transition matrix, logLL, and the optimization fnctn 
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true

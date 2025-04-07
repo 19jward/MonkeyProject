@@ -19,6 +19,10 @@ knitr::opts_chunk$set(echo = TRUE)
 * V. Optimizing LL
   - V.I Function
   - V.II Testing/Applying Function
+* VI. get_ll_row 
+  - VI.I Function
+  - VI.II Testing Function
+  - VI.III Optimizing
 
 # I. Packages
 
@@ -144,7 +148,7 @@ but what if p12 = beta0 + beta1(X=indicator for forest)
 probably have to do logit and make sure the ps all sum to 1 still? idk 
 so we take our function and tweak it to have betas instead of Ps
 ___________________________________________________________________________
-## III.2 Code Attempts
+## III.2 Code
 ```{r}
 ## note that you need the same order of behaviors that I have (probs can change that later)
 behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
@@ -154,20 +158,16 @@ behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
 
 ## functions takes data (a focal) and P (a transition matrix)
 get_ll <- function(data, P, behavior_list){
-  B <- nrow(P) # number of behaviors
-  y <- behavior_list
-  ymatrix <- model.matrix(~y - 1)
-  
-  ## build a Y Duration Matrix (which is just P without the denominator I think)
+  ## build a Y Duration Matrix (which is just P without the denominator)
   Yduration <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))
   rownames(Yduration) <- colnames(Yduration) <- behavior_list
   for(b1 in behavior_list){
-    denomentator <- sum(data$TimeSpent[data$Behavior == b1]) - 
+    denominator <- sum(data$TimeSpent[data$Behavior == b1]) - 
       as.numeric(tail(data$Behavior, 1) == b1)
     b1_ind <- which(data$Behavior == b1)
     for(b2 in behavior_list){
       if(b1 == b2){
-        numerator <- denomentator - sum(data$Behavior == b1) + 
+        numerator <- denominator - sum(data$Behavior == b1) + 
           as.numeric(tail(data$Behavior, 1) == b1) 
         } else { 
           numerator <- sum(data$Behavior[b1_ind + 1] == b2, na.rm = T)
@@ -185,7 +185,6 @@ get_ll <- function(data, P, behavior_list){
   }
 }
 ```
-
 
 ```{r}
 ## ok im gonna train it on focal 28 and then use focal 10 as the input data?
@@ -289,12 +288,13 @@ fit_MM <- function(X, behavior_list, par = matrix(1/length(behavior_list),
     if(any(rowSums(Pf) > 1)) return(-Inf)
     Pf <- cbind(Pf, 1 - rowSums(Pf))
     rownames(Pf) <- colnames(Pf) <- behavior_list
-    get_ll(X, Pf, behavior_list)}, X = X, control = c(fnscale = -1))
+    get_ll(X, Pf, behavior_list)}, X = X, control = c(fnscale = -1, maxit = 5000))
   
   out <- fit$par
   out <- cbind(out, 1 - rowSums(out))
+  out2 <- fit$convergence
   rownames(out) <- colnames(out) <- behavior_list
-  return(out)
+  return(fit)
 }
 
 fit_MM(X, fake_behaviorshortlist)
@@ -326,6 +326,9 @@ test
 ## 3 behaviors - works really well
 test3 <- fit_MM(X, fake_behaviorshortlist)
 test3 
+
+tm3 <- matrixfunct(X, fake_behaviorshortlist)
+tm3
 ```
 
 ### 4 behaviors
@@ -349,11 +352,8 @@ tm4
 ```
 
 ### 5 behaviors
-- yeah none of this works past  behaviors
-- seems to be just sticking close to the uniform and is heading towards the just returning uniform, why??????
-- i mean the good news is the most common behaviors we see are just move, feed, and sleep
-- but getting it to work would be great
-- it looks like the optimized doesnt want to give back 0 for any which is throwing it off a lot
+- yeah none of this works past 3 behaviors :)
+- seems to be just sticking close to the uniform and is heading towards the just returning uniform, why?????? - not enough information in data set (power issue!)
 ```{r}
 ## 5 behaviors
 fake_behaviors5 <- c("move", "feed", "aggresive", "vigilance", "move", "sleep", "vigilance",
@@ -374,8 +374,188 @@ tm5 <- matrixfunct(fake_data5, fake_behaviorlist5)
 tm5
 ```
 
+```{r}
+## testing 5 with a really long fake focal to see if it is a power analysis thing
+## 5 behaviors
+fake_behaviors5.0 <- c("move", "feed", "aggresive", "vigilance", "move", "sleep", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "sleep", "move", "feed", "move", "feed", "aggressive", "move",
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", "vigilance",
+                     "move", "sleep", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "sleep", "move", "feed", "move", "feed", "aggressive", "move",
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", "vigilance",
+                     "move", "sleep", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "sleep", "move", "feed", "move", "feed", "aggressive", "move",
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", "vigilance",
+                     "move", "sleep", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "sleep", "move", "feed", "move", "feed", "aggressive", "move",
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", "vigilance",
+                     "move", "sleep", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "sleep", "move", "feed", "move", "feed", "aggressive", "move",
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", "vigilance",
+                     "move", "sleep", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "sleep", "move", "feed", "move", "feed", "aggressive", "move",
+                     "aggressive", "move", "feed", "move", "sleep")
+fake_duration5.0 <- c(10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10, 200, 23, 78, 20, 
+                    45, 90, 20, 10, 45, 45, 30, 10, 10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10,
+                    200, 23, 78, 20, 
+                    45, 90, 20, 10, 45, 45, 30, 10, 10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10,
+                    200, 23, 78, 20, 
+                    45, 90, 20, 10, 45, 45, 30, 10, 10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10,
+                    200, 23, 78, 20, 
+                    45, 90, 20, 10, 45, 45, 30, 10, 10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10,
+                    200, 23, 78, 20, 
+                    45, 90, 20, 10, 45, 45, 30, 10, 10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10,
+                    200, 23, 78, 20, 
+                    45, 90, 20, 10, 45, 45, 30, 10) 
+fake_data5.0 <- data.frame(fake_duration5.0, fake_behaviors5.0)
+colnames(fake_data5) <- c("TimeSpent", "Behavior") 
+fake_behaviorlist5 <- c("move", "sleep", "feed", "vigilance", "aggressive")
+
+test5 <- fit_MM(fake_data5.0, fake_behaviorlist5)
+test5
+
+## accuracy check 
+tm5 <- matrixfunct(fake_data5.0, fake_behaviorlist5)
+tm5
+```
+i broke it??? i thought this issue was resolved idk whats up here?????? like the original function not the modified one later :(
+
+
+
 ### things to add but like its not working anyway rn
 
 - Adding confidence intervals (hessian thing)
 - Add uncertainty/predictors (add something to code before get_ll??)
 - Map covariates to P
+
+(from Henry)
+## covariates first step
+ covariates2prob <- function(beta, X){
+   
+ ## multinomial logit link
+   # eta = x * beta_ij
+   # p = eta / rowsums(eta)
+   
+   return(prob)
+}
+
+# VI get_ll_row
+
+## VI.I function
+
+```{r}
+# for a fixed row_behavior = b1, find likelihood component
+get_ll_row <- function(data, p_row, row_behavior, behavior_list){
+  Yduration <- matrix(NA, nrow = 1, ncol = length(behavior_list))
+  rownames(Yduration) <- row_behavior
+  colnames(Yduration) <- behavior_list
+
+  denominator <- sum(data$TimeSpent[data$Behavior == row_behavior]) -
+    as.numeric(tail(data$Behavior, 1) == row_behavior)
+  
+  row_ind <- which(data$Behavior == row_behavior)
+  
+  for(b2 in behavior_list){
+    if(row_behavior == b2){
+      numerator <- denominator - sum(data$Behavior == row_behavior) + 
+        as.numeric(tail(data$Behavior, 1) == row_behavior) 
+    } else { 
+      numerator <- sum(data$Behavior[row_ind + 1] == b2, na.rm = T)
+    }
+    Yduration[1,b2] <- numerator
+  }
+  
+  LogL <- sum((log(p_row)*Yduration)[Yduration>0])
+  
+  if(is.na(LogL)){
+    return(-Inf)
+  } else {
+    return(LogL)
+  }
+}
+```
+
+## VI.II testing 
+
+```{r}
+## test w/5 behaviors
+fake_p_row5 <- matrix(c(1/5, 1/5, 1/5, 1/5, 1/5), nrow = 1, ncol = 5)
+
+test5.1 <- get_ll_row(fake_data5, fake_p_row5, "feed", fake_behaviorlist5)
+## tentatively works?? its giving a number but like what does ll even mean lol
+```
+
+
+## VI.III optimizing (replacing fit_MM)
+- adds a condition for by row or by whole matrix 
+
+- this was a flop week ngl
+
+- currently running into issues i think with like naming??? its not working somewhere bc of choosing the singular row i need for the P
+```{r}
+## still need to add uncertainty
+fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list), 
+                                                     nrow = length(behavior_list), 
+                                                     ncol = length(behavior_list) - 1), 
+                   maxit = 500, rowwise = T){
+  if(!isTRUE(rowwise)){
+    fit <- optim(par = par, fn = function(par, data){
+      if(any(par < 0)) return(-Inf)
+      if(any(par > 1)) return(-Inf)
+      Pf <- matrix(par, nrow = length(behavior_list))
+      if(any(rowSums(Pf) > 1)) return(-Inf)
+      Pf <- cbind(Pf, 1 - rowSums(Pf))
+      rownames(Pf) <- colnames(Pf) <- behavior_list
+      get_ll(X, Pf, behavior_list)}, data = data, control = c(fnscale = -1, maxit = maxit))
+    
+    out <- fit$par
+    out <- cbind(out, 1 - rowSums(out))
+    rownames(out) <- colnames(out) <- behavior_list
+    return(out)
+    
+  } else if(isTRUE(rowwise)){
+    out <- c()
+    for(b1 in behavior_list){
+      fit <- optim(par = par, fn = function(par, data){
+        if(any(par < 0)) return(-Inf)
+        if(any(par > 1)) return(-Inf)
+        Pf <- matrix(par, nrow = length(behavior_list)) 
+          ## this being the full matrix here makes me feel like im not actually optimizing by row
+        if(any(rowSums(Pf) > 1)) return(-Inf)
+        Pf <- cbind(Pf, 1 - rowSums(Pf))
+        rownames(Pf) <- colnames(Pf) <- behavior_list
+        Pf <- Pf[b1, ] ## this is where its not working rn, is it bc b1 is a string not a number??
+                       ## but it is the string that is the name of the row so idk 
+        get_ll_row(X, Pf, row_behavior = b1, behavior_list)}, data = data, ## not sure about the b1 here 
+        control = c(fnscale = -1, maxit = maxit))
+   
+       row_out <- fit$par
+       row_out <- cbind(row_out, 1 - rowSums(row_out))
+       rownames(row_out) <- behavior_list 
+       colnames(row_out) <- behavior_list
+       
+       out <- rbind(out, row_out)
+       
+    }
+    
+    rownames(out) <- colnames(out) <- behavior_list ## this is where its having issues???? why????
+    return(out)
+  }
+}
+```
+
+```{r}
+## testing w/3 behaviors
+test3 <- fit_MM(X, fake_behaviorshortlist)
+test3 
+
+tm3 <- matrixfunct(X, fake_behaviorshortlist)
+tm3
+```
+
