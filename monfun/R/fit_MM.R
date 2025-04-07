@@ -16,11 +16,28 @@ fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list),
     out <- cbind(out, 1 - rowSums(out))
     rownames(out) <- colnames(out) <- behavior_list
     return(out)
+    
   } else if(isTRUE(rowwise)){
-    ## idea to do this row-by-row:
-    ## loop over rows
-    ## optim(get_ll_row, ) -> fit and uncertainty
-    ## recombine
-    ## (working on this on the functional development rmd)
+    out <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))
+    rownames(out) <- colnames(out) <- behavior_list
+    rownames(par) <- behavior_list
+    for(b1 in behavior_list){
+      par_row <- par[b1, ]
+      fit <- optim(par = par_row, fn = function(par, data){
+        if(any(par < 0)) return(-Inf)
+        if(any(par > 1)) return(-Inf)
+        if(sum(par) > 1) return(-Inf)
+        p_row <- c(par, 1 - sum(par))
+        names(p_row) <- behavior_list
+        get_ll_row(X, p_row, row_behavior = b1, behavior_list)}, data = data,  
+        control = c(fnscale = -1, maxit = maxit))
+      
+      row_out <- fit$par
+      row_out <- c(row_out, 1 - sum(row_out))
+      
+      out[b1, ] <- row_out
+    }
+    
+    return(out)
   }
 }
