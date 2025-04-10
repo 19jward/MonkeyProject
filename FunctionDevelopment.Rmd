@@ -9,55 +9,83 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+_____________________________________________________________________________
+
 # TOC
-* I. Packages
+* 0. Data Import
+* I. Unresolved Stuff to Consider
 * II. Transition Matrix from an Individual Focal
 * III. New Function: Get Log-Likelihood
-  - III.1 Pseudo-Code
-  - III.2 Code Attempts/notes idk
+  - III.1 Pseudo-Code/Notes
+  - III.2 Function Code
+  - III.3 Testing get_LL function
 * IV. Isolate Focal Function
 * V. Optimizing LL
-  - V.I Function
-  - V.II Testing/Applying Function
+  - V.1 Notes
+  - V.2 Function Code
+  - V.3 Testing/Applying Function
 * VI. get_ll_row 
-  - VI.I Function
-  - VI.II Testing Function
-  - VI.III Optimizing
+  - VI.1 Function
+  - VI.2 Testing Function
+* VII. Optimizing by row (replace fit_MM)
+  - VII.1 Function Code
+  - VII.2 Testing (but also just use V.III)
+* VIII. Adding Covariates
 
-# I. Packages
+__________________________________________________________________________
 
-```{r}
-library(dplyr) ## need for case_when in get_ll function
-```
-
-## data import
+# 0. data import
 
 ```{r}
 monkeyprelimdata <- read.csv("~/Desktop/MonkeyProject/monkeyprelimdata.csv")
-```
 
-# II. Transition Matrix from an Individual Focal
-
-```{r}
-behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
+full_behavior_list <-c("Move", "Vigilance", "Feed", "Rest",
                "Affiliative", "Aggressive", "SelfGroom",
                "Survey", "Human Directed",
                "Forage", "Sleep", "Play")
+```
 
-matrixfunct <- function(dataframe, behaviorshortlist){
-  Matrix <- matrix(NA, nrow = length(behaviorshortlist), ncol = length(behaviorshortlist))
-  rownames(Matrix) <- colnames(Matrix) <- behaviorshortlist
-  for(b1 in behaviorshortlist){
-    denomentator <- sum(dataframe$TimeSpent[dataframe$Behavior == b1]) - 
-      as.numeric(tail(dataframe$Behavior, 1) == b1) ## accounting for if the last behavior in focal is b1 (doesn't count as a transition opportunity), overall total possible transition opportunities
-    b1_ind <- which(dataframe$Behavior == b1)
-    for(b2 in behaviorshortlist){
+____________________________________________________________________________
+
+# I. Unresolved Stuff to Consider
+
+* combining focals
+  - how to apply transition matrix to focal combos
+  - accounting for the jump from focal to focal not actually being a transition
+* pause? remove but dont want the next to be a transition?
+  - change og function to ignore PAUSE
+  - chop off focals after point of PAUSE (lose some data)
+  - split into multiple focals?
+  - choose path of least resistance rn
+  - for rn im just going to choose focals that dont have PAUSE and i will deal with that
+  later :)
+* add uncertainty to optmization (confidence intervals?)
+____________________________________________________________________________
+
+# II. Transition Matrix from an Individual Focal
+
+Function for creating a point estimate transition matrix for a singulat focal
+\
+\
+NOTE: columns need to be named "TimeSpent" and "Behavior"
+\
+\
+function takes a dataset (focal) and a list of behaviors
+```{r}
+matrixfunct <- function(data, behavior_list){
+  Matrix <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))
+  rownames(Matrix) <- colnames(Matrix) <- behavior_list
+  for(b1 in behavior_list){
+    denomentator <- sum(dataframe$TimeSpent[data$Behavior == b1]) - 
+      as.numeric(tail(data$Behavior, 1) == b1) ## accounting for if the last behavior in focal is b1 (doesn't count as a transition opportunity), overall total possible transition opportunities
+    b1_ind <- which(data$Behavior == b1)
+    for(b2 in behavior_list){
       if(b1 == b2){ ## if staying in the same behavior
-        numerator <- denomentator - sum(dataframe$Behavior == b1) + 
-          as.numeric(tail(dataframe$Behavior, 1) == b1) 
-        ## removing the times they switched to a diff behavior & adding back in that situation if the last behavior is b1
+        numerator <- denomentator - sum(data$Behavior == b1) + 
+          as.numeric(tail(data$Behavior, 1) == b1) 
+        ## removing the times they switched to a diff behavior & adding back in that     situation if the last behavior is b1
         } else { ## if moving to a different behavior
-          numerator <- sum(dataframe$Behavior[b1_ind + 1] == b2, na.rm = T)
+          numerator <- sum(data$Behavior[b1_ind + 1] == b2, na.rm = T)
           }
       Matrix[b1,b2] <- numerator/denomentator
     }
@@ -68,52 +96,13 @@ return(Matrix)
 
 ** NOTE: this does not work when we have the situation where the data file has 2 of the same behavior right on top of eachother --> probably easier to fix by cleaning the dataframe than changing the function (also we never concretely established why it is like that in the data)
 
-
-** future consideration: how to make this apply to multiple combined focals
-** also make it more generalizable than the specific names I have going on here
-
+___________________________________________________________________________
 
 # III. Get Log-Likelihood Function
 
 ## III.1 Pseudo-Code/Work
-- get log-likelihood function (the spacing on this will probably look wack when i knit but thats life)
-_______________________________________________________
-Outline from Henry:
-P = the probability transition matrix?
 
-get_LL --> function(behaviors, P){
-  .
-  .
-  .
-  return(log-likelihood)
-}
-Check:
-If you’ve made behaviors w/particular P, does it give you close to the highest possible value with the first function
-1. Simulate behaviors from P
-2. Check get_LL is maximized close to P
-Then optim function will help us with maximization
-
-___________________________________________________________________________
 work w/Henry during the meeting:
-
-y1 = behavior at first time point
-y1| p1 ~ categorical w/probability p1= (p11, p12, ..., p1B) B = 13/ whatever the number of behaviors are
-  p1 = probabilkty of being in which of the B behaviors when you wander out and see the monkeys
-
-P = transition matrix 
-
-yt = ( 0 0 0 ...... 1 ...... 0 0 0)^T bth behavior
-
-yt|[y(t-1), P ] ~ cat(Py(t-1)) ~ Cat(pt)
-
-pt = P*y(t-1) --> picks out particular row of P
-
-holds for t2 --> B
-
-so now we can find the likelihood
-things:
-- categorical --> pmf not pdf
-- not independent 
 
 L(theta, y) = P(y1|p1)P(y2|y1, P)P(y3|y2, P) .....
             = P(y1|p1)*product(P(yt|y(t-1), P))
@@ -121,42 +110,25 @@ L(theta, y) = P(y1|p1)P(y2|y1, P)P(y3|y2, P) .....
             inner product of y1^t*p1
             (y1^t*p1)(yT*P*y(T-1)).....(y2*P*y(2-1))
             
-we prefer log
+we prefer log -->
 
 log(L) = sum of logs = log(y1^t*p1) + log(yT*P*y(T-1)) + ......
 
 P(y1|p1) = P11 ^ y11 * P12^y12 * ..... * P1B^y1B
 log(^^) = y1^tlog(p1)
 
-need to like expand the data so it has each second as individual 
-
-output is a single scalar (not a matrix)
-
-essentially doing this to test different Ps
-
-then we optimize that function to find the Ps
-
-
-test function , give it a P, tells us how good we are doing
-
-checks we can do:
-
-take a focal, take one of the point estimated matrices, do the log-likelihood, try it again with a diff transition matrix, likelihood value should go down
 
 P = matrix(p11, p12, p13, p21, p22, p23, p31, p32, p33, row = 3, col = 3)
 but what if p12 = beta0 + beta1(X=indicator for forest)
 probably have to do logit and make sure the ps all sum to 1 still? idk 
 so we take our function and tweak it to have betas instead of Ps
-___________________________________________________________________________
-## III.2 Code
-```{r}
-## note that you need the same order of behaviors that I have (probs can change that later)
-behaviorshortlist <-c("Move", "Vigilance", "Feed", "Rest",
-               "Affiliative", "Aggressive", "SelfGroom",
-               "Survey", "Human Directed",
-               "Forage", "Sleep", "Play") 
 
+___________________________________________________________________________
+
+## III.2 Code (get_LL)
+```{r}
 ## functions takes data (a focal) and P (a transition matrix)
+## note column names need to be "TimeSpent" and "Behavior"
 get_ll <- function(data, P, behavior_list){
   ## build a Y Duration Matrix (which is just P without the denominator)
   Yduration <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))
@@ -186,6 +158,7 @@ get_ll <- function(data, P, behavior_list){
 }
 ```
 
+## III.3 Testing
 ```{r}
 ## ok im gonna train it on focal 28 and then use focal 10 as the input data?
 
@@ -197,29 +170,17 @@ focal_10 <- isolate.focal(10)
 P_10 <- matrixfunct(focal_10, behaviorshortlist)
 P_10[is.na(P_10)] <- 0 ## get rid of NaNs
 
-get_ll(focal_10, P_28) ## so this gave -inf which makes sense but im realizing a flaw in testing bc all of the transition have like missing values (0s) so its always going to be like no???
+get_ll(focal_10, P_28) 
 
 get_ll(focal_10, P_10)
 
-P_fake <- matrix(1/12, 12, 12) ## cant have 0 probability for a transition that we do observe
+P_fake <- matrix(1/12, 12, 12) ## cant have 0 probability for a transition that we do observe - shouldnt happen in the real full set
 focal_1 <- isolate.focal(1)
 
 get_ll(focal_1, P_fake)
 ```
 
-#### Resolved things (that arent really resolved but im kinda just ignoring for now):
-
-- like somewhere there is supposed to be a part where i can put some variables like forest/road or whatever and that is included in the likelihood? im not sure where to put this
-  -ignore this for now (which will replace the ps with betas in the future)
--overall NaNs from P to 0s to make it work (for now, dont change the matrixfunct function)
-
-- pause? remove but dont want the next to be a transition?
-  - change og function to ignore PAUSE
-  - chop off focals after point of PAUSE (lose some data)
-  - split into multiple focals?
-  - choose path of least resistance rn
-  - for rn im just going to choose focals that dont have PAUSE and i will deal with that later :)
-____________________________________________________
+___________________________________________________________________
 	
 ## IV. Isolate focal function
 ```{r}
@@ -235,9 +196,12 @@ isolate.focal <- function(i){
 focal_28 <- isolate.focal(28)
 ```
 
+
+__________________________________________________________________________
+
 # V. Optimizing LL
 
-## V.1 Creating Function
+## V.1 Notes
 
 ### Henry optim chat ----
 
@@ -257,8 +221,9 @@ fit.h
 
 ```
 
-### applying to our log_ll function
 ```{r}
+## set up 
+
 ## fake dataset (3 behaviors only)
 
 fake_behaviors <- c("move", "feed", "move", "sleep", "feed", "sleep", "move", "sleep", "move")
@@ -278,6 +243,17 @@ get_ll(X, Pf, fake_behaviorshortlist)
 ## control is scaling it bc optim likes to minimize and we want to optimize
 
 ## make the optim thing within another function to make it simpler to use
+
+## fake initial matrix
+initial_matrix_fake <- matrix(c(0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4), 
+                              nrow = 3, ncol = 3)
+row.names(initial_matrix_fake) <- fake_behaviorshortlist
+colnames(initial_matrix_fake) <- fake_behaviorshortlist
+```
+
+
+## V.2 Function Code
+```{r}
 fit_MM <- function(X, behavior_list, par = matrix(1/length(behavior_list), 
                                                   nrow = length(behavior_list), 
                                                   ncol = length(behavior_list) - 1)){
@@ -296,19 +272,10 @@ fit_MM <- function(X, behavior_list, par = matrix(1/length(behavior_list),
   rownames(out) <- colnames(out) <- behavior_list
   return(fit)
 }
-
-fit_MM(X, fake_behaviorshortlist)
-Pf
-
-## fake initial matrix
-initial_matrix_fake <- matrix(c(0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4), 
-                              nrow = 3, ncol = 3)
-row.names(initial_matrix_fake) <- fake_behaviorshortlist
-colnames(initial_matrix_fake) <- fake_behaviorshortlist
 ```
 
 
-## V.II Applications
+## V.3 Applications/Testing
 
 - trying different numbers of behaviors & different length focals to see where it breaks (it broke immediatly oops)
 
@@ -334,6 +301,7 @@ tm3
 ### 4 behaviors
 - oop we broke, that didn't take long
 - but still no warnings or errors....
+- EDIT: rowwise now works better here
 ```{r}
 ## 4 behaviors - works but not accurate??
 fake_behaviors4 <- c("move", "feed", "vigilance", "move", "sleep", "vigilance",
@@ -346,22 +314,23 @@ fake_behaviorlist4 <- c("move", "sleep", "feed", "vigilance")
 test4 <- fit_MM(fake_data4, fake_behaviorlist4)
 test4
 
-## accuracy check - oof, immediate rough accuracy
+## accuracy check
 tm4 <- matrixfunct(fake_data4, fake_behaviorlist4)
 tm4
 ```
 
 ### 5 behaviors
-- yeah none of this works past 3 behaviors :)
 - seems to be just sticking close to the uniform and is heading towards the just returning uniform, why?????? - not enough information in data set (power issue!)
+- loss of accuracy, better when we do it rowwise
 ```{r}
 ## 5 behaviors
-fake_behaviors5 <- c("move", "feed", "aggresive", "vigilance", "move", "sleep", "vigilance",
+fake_behaviors5 <- c("move", "feed", "aggresive", "vigilance", "move", "sleep", 
+                     "vigilance",
                      "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
                      "sleep", "move", "feed", "move", "feed", "aggressive", "move",
                      "aggressive", "move", "feed", "move", "sleep")
-fake_duration5 <- c(10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10, 200, 23, 78, 20, 
-                    45, 90, 20, 10, 45, 45, 30, 10) 
+fake_duration5 <- c(10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10, 200, 23, 78, 
+                    20, 45, 90, 20, 10, 45, 45, 30, 10) 
 fake_data5 <- data.frame(fake_duration5, fake_behaviors5)
 colnames(fake_data5) <- c("TimeSpent", "Behavior") 
 fake_behaviorlist5 <- c("move", "sleep", "feed", "vigilance", "aggressive")
@@ -435,28 +404,11 @@ initial <- 0.1*(1/(length(behavior_list) - 1))*matrix(1, nrow = length(behavior_
 initial <- initial[, 1:(length(behavior_list)-1)]
 ```
 
+______________________________________________________________________
 
+# VI. get_ll_row
 
-### things to add but like its not working anyway rn
-
-- Adding confidence intervals (hessian thing)
-- Add uncertainty/predictors (add something to code before get_ll??)
-- Map covariates to P
-
-(from Henry)
-## covariates first step
- covariates2prob <- function(beta, X){
-   
- ## multinomial logit link
-   # eta = x * beta_ij
-   # p = eta / rowsums(eta)
-   
-   return(prob)
-}
-
-# VI get_ll_row
-
-## VI.I function
+## VI.1 function
 
 ```{r}
 # for a fixed row_behavior = b1, find likelihood component
@@ -490,7 +442,7 @@ get_ll_row <- function(data, p_row, row_behavior, behavior_list){
 }
 ```
 
-## VI.II testing 
+## VI.2 testing 
 
 ```{r}
 ## test w/5 behaviors
@@ -501,12 +453,13 @@ test5.1 <- get_ll_row(fake_data5, fake_p_row5, "feed", fake_behaviorlist5)
 ```
 
 
-## VI.III optimizing (replacing fit_MM)
+# VII. Row Optimization for fit_MM
+
 - adds a condition for by row or by whole matrix 
+- NOTE: this replaced the old fit_MM from before
 
-- this was a flop week ngl
 
-- currently running into issues i think with like naming??? its not working somewhere bc of choosing the singular row i need for the P
+## VII.1 Function Code
 ```{r}
 ## still need to add uncertainty
 
@@ -555,6 +508,7 @@ fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list),
 }
 ```
 
+## VII.2 Testing (or just use the tests from V.3 bc its the same function name)
 ```{r}
 ## testing w/3 behaviors
 test3 <- fit_MM(X, fake_behaviorshortlist)
@@ -564,3 +518,23 @@ tm3 <- matrixfunct(X, fake_behaviorshortlist)
 tm3
 ```
 
+_________________________________________________________________________
+
+# VIII. Adding Covariates
+
+### things to add but like its not working anyway rn
+
+- Adding confidence intervals (hessian thing)
+- Add uncertainty/predictors (add something to code before get_ll??)
+- Map covariates to P
+
+(from Henry)
+## covariates first step
+ covariates2prob <- function(beta, X){
+   
+ ## multinomial logit link
+   # eta = x * beta_ij
+   # p = eta / rowsums(eta)
+   
+   return(prob)
+}
