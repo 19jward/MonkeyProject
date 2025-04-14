@@ -528,13 +528,97 @@ _________________________________________________________________________
 - Add uncertainty/predictors (add something to code before get_ll??)
 - Map covariates to P
 
-(from Henry)
-## covariates first step
- covariates2prob <- function(beta, X){
-   
- ## multinomial logit link
+```{r}
+## sample set
+fake_behaviors5.2 <- c("move", "feed", "aggresive", "vigilance", "move", "sleep", 
+                     "vigilance","feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "sleep", "move", "feed", "move", "feed", "aggressive", "move",
+                     "aggressive", "move", "feed", "move", "sleep")
+fake_duration5.2 <- c(10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10, 200, 23, 78, 
+                    20, 45, 90, 20, 10, 45, 45, 30, 10) 
+fake_category5.2 <- c(rep("jalan", 15), rep("hutan", 11))
+
+fake_data5.2 <- data.frame(fake_duration5.2, fake_behaviors5.2, fake_category5.2)
+colnames(fake_data5.2) <- c("TimeSpent", "Behavior", "Habitat")
+
+testingggg <- model.matrix(~ TimeSpent + Behavior + Habitat, 
+                     data = fake_data5.2)[, -1]
+
+## Q: where do i pull the betas from????? is that in the function??????
+## i think for my matrix equation to make sense it has to be 2 rows and however many behaviors we have for # of columns
+
+fake_betas <- matrix(rnorm(2*ncol(testingggg)), nrow = 2)
+```
+
+
+## multinomial logit link
    # eta = x * beta_ij
    # p = eta / rowsums(eta)
    
-   return(prob)
+```{r}
+## function to convert covariates to probability (use multinomial logit link)
+
+## i think there should have been a loop in here somewhere over the behaviors
+
+
+cov2prob <- function(beta, X){
+  X <- model.matrix(~ TimeSpent + Behavior + Habitat, data = X) [, -1]
+  ## do i want the intercept? i think no but i dont have a good reason why
+  
+  ## logit(Pi) = t(Xi)*Beta
+  ## eta = t(Xi)*Beta_ij (j = 1, . . ., B)
+  ## Pij = exp(eta_ij)/sum(exp(eta)ij))
+  
+  
+  eta <- X %*% t(beta)   ## i think the fundamental format is wrong here bc it should be t(X)?
+  exp_eta <- exp(eta)
+  prob <- exp_eta/rowSums(exp_eta)
+  
+  return(prob)
 }
+```
+
+```{r}
+cov2prob(fake_betas, fake_data5.2)
+
+## this output makes no sense idk what im looking at
+# i dont think i should have a matrix the size of my dataset.....
+```
+
+```{r}
+## take 2 :)
+
+  ## logit(Pi) = t(Xi)*Beta
+  ## eta = t(Xi)*Beta_ij (j = 1, . . ., B)
+  ## Pij = exp(eta_ij)/sum(exp(eta)ij))
+
+## what form should beta be in? i think its a matrix but is it just a vector of coefficients?
+
+cov2prob <- function(beta, X, behavior_list){
+  X <- model.matrix(~ TimeSpent + Behavior + Habitat, data = X) [, -1]
+  ## still have the intercept question (still think no)
+  B <- length(behavior_list)
+  
+  
+  for (i in something){ ## is the something in X? what is Xi? is it a single second in the data??
+    x <- x[i,]
+    for (j in B){ ## then this runs through each behavior
+      eta_ij <- t(x)*beta
+      
+    }
+  }
+  
+  eta <- X %*% t(beta)  
+  exp_eta <- exp(eta)
+  prob <- exp_eta/rowSums(exp_eta)
+  
+  return(prob)
+}
+```
+
+QUESTIONS: probably should have clarified this last week oops
+- do we want an intercept for the model matrix (i think no)? should there even be a model matrix in here?
+- are the betas a vector or a matrix?? in my mind it has to be a matrix to make sense but perhaps not
+- whats the loop situation??
+
+
