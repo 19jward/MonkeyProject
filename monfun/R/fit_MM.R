@@ -1,7 +1,7 @@
 fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list), 
                                                      nrow = length(behavior_list), 
                                                      ncol = length(behavior_list) - 1), 
-                   maxit = 500, rowwise = T){
+                   maxit = 5000, rowwise = T){
   if(!isTRUE(rowwise)){
     fit <- optim(par = par, fn = function(par, data){
       if(any(par < 0)) return(-Inf)
