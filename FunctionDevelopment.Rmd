@@ -553,7 +553,7 @@ fake_focal5.2.3 <- isolate.focal(fake_data5.2, 3)
 
 
 
-fake_beta_slice <- matrix(2*rnorm(5), nrow = 5, ncol = 2) 
+fake_beta_slice <- matrix(2*rnorm(5), nrow = 2, ncol = 5) 
   
 
 X_test <- c(1, 1) 
@@ -571,7 +571,7 @@ X_test <- c(1, 1)
 ## this function is for a single initial behavior, will loop over it in a new get_ll fnctn
 cov2prob <- function(X, beta){
  
-  eta_b1 <- X%*%t(beta)  ## FxB matrix
+  eta_b1 <- X%*%beta  ## FxB matrix
   exp_eta_b1 <- exp(eta_b1)
   P_b1 <- exp_eta_b1/rowSums(exp_eta_b1)
   
@@ -602,30 +602,26 @@ function 3:
   ## beta (slice of BxMxM array pertaining to starting behavior)
   ## starting behavior 
   ## behavior list
-get_ll_cov_b1 <- function(data, beta, beta_starting_behavior, behavior_list){
+
+
+X_test5.2 <- matrix(c(1, 1, 1, 1, 0, 1), nrow = 3, ncol = 2)
+
+get_ll_cov_b1 <- function(data, beta, beta_starting_behavior, behavior_list, X){
   num_foc <- length(unique(data$FocalID)) ## number of focals (F)
   B <- length(unique(data$Behavior)) ## number of behaviors
   
   sum_LL <- numeric(0)
   data$FocalID <- as.numeric(data$FocalID)
   
+    
+  P <- cov2prob(X = X, beta = beta) ## beta currently defined outside of the function 
+  
   for (f in 1:num_foc){
     focal <- f
     data_focal <- subset(data, data$FocalID == f, select = c(TimeSpent, Behavior, Habitat)) 
     
-    ## need to build the X for each focal, this is about to be super specific
-    ## only has intercept and the habitat covariate, would need to modify this function to add others
-    if (any(data_focal$Habitat == "jalan")){
-      X <- c(1, 1) ## 1 for jalan (should this be arbitrary?)
-    } else{
-      X <- c(1, 0) ## 0 for hutan
-    }
+    P_f <- P[f,]
     
-    ## behavior_list <- list(unique(data_focal$Behavior)) ## this caused problems, just take a list
-    
-    P_f <- cov2prob(X = X, beta = beta) ## beta currently defined outside of the function 
-  
-
     focal_LL <- get_ll_row(data = data_focal, p_row = P_f, row_behavior = beta_starting_behavior,
                            behavior_list = behavior_list) 
     
@@ -640,8 +636,7 @@ get_ll_cov_b1 <- function(data, beta, beta_starting_behavior, behavior_list){
 
 ## test it
 get_ll_cov_b1(fake_data5.2, beta = fake_beta_slice, beta_starting_behavior = "move", 
-              behavior_list = fake_behaviorlist5) ## oh hell yeah it works! like so specific but it works!
-
+              behavior_list = fake_behaviorlist5, X = X_test5.2) 
 ```
 
 
@@ -651,24 +646,28 @@ get_ll_cov_b1(fake_data5.2, beta = fake_beta_slice, beta_starting_behavior = "mo
 
 ## function takes
     ## data
+    ## X
     ## behavior list (check caps)
     ## starting behavior
     ## number of covariates
     ## par = initial betas (MxB matrix) - slice of the array
 
-optim_cov_ll_b1 <- function(data, behavior_list, beta_starting_behavior, num_cov, maxit = 5000){
+optim_cov_ll_b1 <- function(data, X, behavior_list, beta_starting_behavior, num_cov, maxit = 5000){
     num_cov <- as.numeric(num_cov)
     B <- as.numeric(length(behavior_list))
   
   ## out is the beta that is optimized, this is still just working with the beta slice so should be MxB
     out <- matrix(NA, nrow = num_cov, ncol = B)
     
-    starting_point <- matrix(num_cov*rnorm(B), nrow = B, ncol = num_cov) ## mimic the beta slice
+    starting_point <- matrix(num_cov*rnorm(B), nrow = num_cov, ncol = B) ## mimic the beta slice
     
     ## i am an optim function h8er
     fit <- optim(par = starting_point, fn = function(par, data){ 
-       get_ll_cov_b1(data = data, beta = par, beta_starting_behavior = beta_starting_behavior, 
-                     behavior_list = behavior_list)}, data = data, 
+      
+      beta_start <- matrix(par, nrow = num_cov, ncol = B)
+      
+       get_ll_cov_b1(data = data, beta = beta_start, beta_starting_behavior = beta_starting_behavior, 
+                     behavior_list = behavior_list, X = X)}, data = data, 
        control = c(fnscale = -1, maxit = maxit))
               ## we're back to an error with the og get_ll within the get_ll_cov
                 ## like the very last line of the get_ll_row is no longer "conformable arrays"
@@ -677,14 +676,14 @@ optim_cov_ll_b1 <- function(data, behavior_list, beta_starting_behavior, num_cov
     
     ## end fit def
     
-    row_out <- fit$par
+    out <- matrix(fit$par, nrow = num_cov, ncol = B)
   
     return(out)
 } ## end function
 
 
 ## testing
-optim_cov_ll_b1(data = fake_data5.2, behavior_list = fake_behaviorlist5, 
+optim_cov_ll_b1(data = fake_data5.2, X = X_test5.2, behavior_list = fake_behaviorlist5, 
                 beta_starting_behavior = "move", num_cov = 2)
 ```
 
@@ -693,22 +692,34 @@ optim_cov_ll_b1(data = fake_data5.2, behavior_list = fake_behaviorlist5,
 ```{r}
 ## last part put it together by doing it across all the behaviors?
 
-optim_cov_ll_full <- function(data, behavior_list){
+optim_cov_ll_full <- function(data, X, behavior_list){
   
   B <- length(behavior_list)
+  num_cov <- ncol(X)
+  
+  out <- array(NA, dim = c(num_cov, B, B), dimnames = list(c("intercept", "habitat"), behavior_list, behavior_list))
   
   for (i in 1:B){
     
-    optim_cov_ll_b1(data = data, behavior_list = behavior_list,  ## does the i need to be in quotes??
-                    beta_starting_behavior = i, num_cov = ) ## how to pull the number of covariates?
-                                                                ## should it just be an input?
-                                                            ## what am i supposed to do with the optimized betas?
+    b1 <- behavior_list[i]
+    
+    fit <- optim_cov_ll_b1(data = data, X = X, behavior_list = behavior_list,
+                    beta_starting_behavior = b1, num_cov = num_cov)
+    
+    out[ , , i] <- fit
+    
+                                                               
     
   } ## end for loop
   
-  return() ## what are we returning lol
+  return(out) ## MxBxB
   
 } ## end function
+
+
+## test
+
+optim_cov_ll_full(data = fake_data5.2, X = X_test5.2, behavior_list = fake_behaviorlist5)
 
 ```
 
@@ -718,4 +729,24 @@ documentation for R package!! also examples? need something written up in next l
 
 Y represents data
 
-add new function to their own script files in package folder
+which habitat is habitat 1
+
+add new functions to their own script files in package folder
+roxygen
+adding examples
+
+documentation & simulate data where i know the "correct" betas
+
+make a function for simulate data
+
+X is FxM
+betas is MxBxB full array
+sim_data <- function(X, beta){
+
+get behavior list from dim names
+behavior_list <- dimnames(beta)[2]
+
+return(sequence of behaviors w/durations)
+}
+
+fit and simulate functions are like inverses of each other
