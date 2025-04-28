@@ -326,9 +326,9 @@ tm4
 - loss of accuracy, better when we do it rowwise
 ```{r}
 ## 5 behaviors
-fake_behaviors5 <- c("move", "feed", "aggresive", "vigilance", "move", "sleep", 
+fake_behaviors5 <- c("move", "feed", "aggressive", "vigilance", "move", "sleep", 
                      "vigilance",
-                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggressive", "vigilance",
                      "sleep", "move", "feed", "move", "feed", "aggressive", "move",
                      "aggressive", "move", "feed", "move", "sleep")
 fake_duration5 <- c(10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10, 200, 23, 78, 
@@ -348,32 +348,32 @@ tm5
 ```{r}
 ## testing 5 with a really long fake focal to see if it is a power analysis thing
 ## 5 behaviors
-fake_behaviors5.0 <- c("move", "feed", "aggresive", "vigilance", "move", "sleep", "vigilance",
-                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+fake_behaviors5.0 <- c("move", "feed", "aggressive", "vigilance", "move", "sleep", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggressive", "vigilance",
                      "sleep", "move", "feed", "move", "feed", "aggressive", "move",
-                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", 
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggressive", 
                      "vigilance", "move", "sleep", "vigilance",
-                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggressive", "vigilance",
                      "sleep", "move", "feed", "move", "feed", "aggressive", "move",
-                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", 
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggressive", 
                      "vigilance",
                      "move", "sleep", "vigilance",
-                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggressive", "vigilance",
                      "sleep", "move", "feed", "move", "feed", "aggressive", "move",
-                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", 
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggressive", 
                      "vigilance",
                      "move", "sleep", "vigilance",
-                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggressive", "vigilance",
                      "sleep", "move", "feed", "move", "feed", "aggressive", "move",
-                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", 
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggressive", 
                      "vigilance",
                      "move", "sleep", "vigilance",
-                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggressive", "vigilance",
                      "sleep", "move", "feed", "move", "feed", "aggressive", "move",
-                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggresive", 
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggressive", 
                      "vigilance",
                      "move", "sleep", "vigilance",
-                     "feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+                     "feed", "sleep", "move", "sleep", "move", "aggressive", "vigilance",
                      "sleep", "move", "feed", "move", "feed", "aggressive", "move",
                      "aggressive", "move", "feed", "move", "sleep")
 fake_duration5.0 <- c(10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10, 200, 23, 78, 20, 
@@ -418,20 +418,20 @@ get_ll_row <- function(data, p_row, row_behavior, behavior_list){
   Yduration <- matrix(NA, nrow = 1, ncol = length(behavior_list))
   rownames(Yduration) <- row_behavior
   colnames(Yduration) <- behavior_list
-
-  denominator <- sum(data$TimeSpent[data$Behavior == row_behavior]) -
+  
+  time_sum <- sum(data$TimeSpent[data$Behavior == row_behavior]) -
     as.numeric(tail(data$Behavior, 1) == row_behavior)
   
   row_ind <- which(data$Behavior == row_behavior)
   
   for(b2 in behavior_list){
     if(row_behavior == b2){
-      numerator <- denominator - sum(data$Behavior == row_behavior) + 
+      duration <- time_sum - sum(data$Behavior == row_behavior) + 
         as.numeric(tail(data$Behavior, 1) == row_behavior) 
     } else { 
-      numerator <- sum(data$Behavior[row_ind + 1] == b2, na.rm = T)
+      duration <- sum(data$Behavior[row_ind + 1] == b2, na.rm = T)
     }
-    Yduration[1,b2] <- numerator
+    Yduration[1,b2] <- duration
   }
   
   LogL <- sum((log(p_row)*Yduration)[Yduration>0])
@@ -530,65 +530,18 @@ _________________________________________________________________________
 - Add uncertainty/predictors (add something to code before get_ll??)
 - Map covariates to P
 
-
 ```{r}
-## i am bailing on this and going to try to just work from a single example instead
-## idk what happened here i am way more lost than i was a week ago
-cov2prob <- function(data, Betas, behavior_list){
-  X <- model.matrix(~ TimeSpent + Behavior + Habitat, data = data)
-      ## is X supposed to have the behaviors?????? 
-      ## is it just like the habitat covariate dummy that is supposed to be there??????
-  B <- length(behavior_list)
-  
-  P_i <- c() ## idk what i am supposed to fill this with to get a BxB
-  
-  # does X go to T as in # of seconds in the focal or number of focals?
-  for (i in 1:length(data)){
-     Xt <- X[i, ] ## X for a single time points
-      ## but we said we are assuming X is a vector that stays the same bc we are now working based on focals
-     ## so idk what X is actually? I think I am looping over the wrong thing
-     eta_ij <- matrix(NA, nrow = length(data), ncol = B) ## my dimensions are wack
-                  ## not sure about the ncol??  
-     for (j in 1:B){
-      eta_ij[j, ] <- exp(t(Xt)*Beta[i,j]) ## still confused on beta
-      P_i <- c(P_i, eta_ij/rowsum(eta_ij))
-        ## i think this has to be inside this loop so then it will be of length B?
-            ## not the length of the data
-            ## hot take idk whats happening here
-            ## i am more confused than i was a week ago
-            ## none of this is looping right
-            ## idek if im defining things as they should be
-     }
-    }
-  return(P_i) ## this should be returning a BxB matrix???? idk 
-}
-
-## use the cov2prob function in a new version of the get_ll function that uses the row version?
-get_ll_new <- function(Y, data, Betas, behavior_list){ ## wtf is Y
-  B <- length(behavior_list)
-  for (i in 1:B){
-    for (t in 1:T){ ## T is the number of focals
-      ## cov2prob(Betas[i, ])
-      ## use get_ll_row
-    }
-    ## sum ll over focals
-  }
-}
-```
-
-
-```{r}
-## trying to work off an example (total fail)
-
 ## sample set
-fake_behaviors5.2 <- c("move", "feed", "aggresive", "vigilance", "move", "sleep", 
-                     "vigilance","feed", "sleep", "move", "sleep", "move", "aggresive", "vigilance",
+fake_behaviors5.2 <- c("move", "feed", "aggressive", "vigilance", "move", "sleep", 
+                     "vigilance","feed", "sleep", "move", "sleep", "move", "aggressive", "vigilance",
                      "sleep", "move", "feed", "move", "feed", "aggressive", "move",
-                     "aggressive", "move", "feed", "move", "sleep")
+                     "aggressive", "move", "feed", "move", "sleep", "move", "feed", "aggressive", "feed",
+                     "move", "sleep", "move", "vigilance", "move", "vigilance", "aggressive", "move",
+                     "vigilance")
 fake_duration5.2 <- c(10, 20, 7, 10, 5, 140, 30, 25, 250, 30, 30, 60, 15, 10, 200, 23, 78, 
-                    20, 45, 90, 20, 10, 45, 45, 30, 10) 
-fake_category5.2 <- c(rep("jalan", 15), rep("hutan", 11))
-fake_focal5.2 <- c(rep("1", 15), rep("2", 11))
+                    20, 45, 90, 20, 10, 45, 45, 30, 10, 23, 12, 7, 11, 24, 230, 34, 63, 14, 210, 22, 13, 54) 
+fake_category5.2 <- c(rep("jalan", 15), rep("hutan", 11), rep("jalan", 13))
+fake_focal5.2 <- c(rep("1", 15), rep("2", 11), rep("3", 13))
 
 fake_data5.2 <- data.frame(fake_duration5.2, fake_behaviors5.2, fake_category5.2, fake_focal5.2)
 colnames(fake_data5.2) <- c("TimeSpent", "Behavior", "Habitat", "FocalID")
@@ -596,46 +549,173 @@ colnames(fake_data5.2) <- c("TimeSpent", "Behavior", "Habitat", "FocalID")
 
 fake_focal5.2.1 <- isolate.focal(fake_data5.2, 1)
 fake_focal5.2.2 <- isolate.focal(fake_data5.2, 2)
-
-## exampleX.5.2.1 <- model.matrix(~ Habitat, data = fake_focal5.2.1)
-## so that no longer makes sense bc we only have 1 level for the predictors, do we just assign 0 or 1 arbitrarily now????
-
-## wait but we said that we are now working with the assumption that the predictors stay the same for each focal so we dont switch between habitats (adding a column for focal # to the fake data) 
+fake_focal5.2.3 <- isolate.focal(fake_data5.2, 3)
 
 
 
-### betas!
-## Bi is a B x M matrix (B is # behaviors, M is # of predictors)
-## so we have 5 behaviors here and 1 predictor (forest/road), so 5 rows and 1 column?
+fake_beta_slice <- matrix(2*rnorm(5), nrow = 5, ncol = 2) 
+  
 
-fake_betas <- matrix(rnorm(5), nrow = 5) ## this needs to be an array now? 
-                                         ## but we pull out a single matrix
-
-X_test <- c(1, 1) # intercept, jalan?
-## 0 for hutan, 1 for jalan? should i add in another variable thats like monkey name so X isnt just a single number (we still have the intercept)
-## i have lost what X is supposed to be
-## its like the covariates right??? with dummy variables??
-## and then betas give the weights for it or something?????
-
-## i think i still dont understand how to define the things i am working with well enough to actually execute this 
+X_test <- c(1, 1) 
 ```
 
 
-- use get_ll_row
-  - p_row is now a matrix that changes in time
-  - jk need to redo it?? or no idk
+```{r}
+## cov2prob function
+## takes X, beta, and a behavior list
+  ## X is FxM matrix (F = # focals, M = # predictors including intercept)
+  ## beta is MxB matrix (B = # behaviors)
 
-- adding by focal (T) to simplify Xs (in each block the predictors stay the same)
-- t is now a focal indicator
+## this function doesnt take data!
 
-- get the cov2prob to work
-- assuming x is a vector that is staying the same
+## this function is for a single initial behavior, will loop over it in a new get_ll fnctn
+cov2prob <- function(X, beta){
+ 
+  eta_b1 <- X%*%t(beta)  ## FxB matrix
+  exp_eta_b1 <- exp(eta_b1)
+  P_b1 <- exp_eta_b1/rowSums(exp_eta_b1)
+  
+  return(P_b1)
+}
 
-cov2prob in the get_ll function?? then just pull the row you want
-cov2prob based on a single indicator
+## yay it works (i think)
+```
+
+
+## applying cov2prob fnctn to optimizing LL function
+
+(splitting it into multiple functions/ a ladder of functions)
+function 1:
+1. B_i (MxB) --> P_i (FxB)
+2. for f in 1:F, get_ll_row(), add them up ✅
+function 2
+3. optimize B_i for data corresponding to starting behavior i
+function 3:
+4. apply to all i = 1:B
+5. Combine B (MxBxB array)
+
+```{r}
+## note data needs setup with column names "FocalID" and "Behavior"
+
+## function takes:
+  ## data (focals)
+  ## beta (slice of BxMxM array pertaining to starting behavior)
+  ## starting behavior 
+  ## behavior list
+get_ll_cov_b1 <- function(data, beta, beta_starting_behavior, behavior_list){
+  num_foc <- length(unique(data$FocalID)) ## number of focals (F)
+  B <- length(unique(data$Behavior)) ## number of behaviors
+  
+  sum_LL <- numeric(0)
+  data$FocalID <- as.numeric(data$FocalID)
+  
+  for (f in 1:num_foc){
+    focal <- f
+    data_focal <- subset(data, data$FocalID == f, select = c(TimeSpent, Behavior, Habitat)) 
+    
+    ## need to build the X for each focal, this is about to be super specific
+    ## only has intercept and the habitat covariate, would need to modify this function to add others
+    if (any(data_focal$Habitat == "jalan")){
+      X <- c(1, 1) ## 1 for jalan (should this be arbitrary?)
+    } else{
+      X <- c(1, 0) ## 0 for hutan
+    }
+    
+    ## behavior_list <- list(unique(data_focal$Behavior)) ## this caused problems, just take a list
+    
+    P_f <- cov2prob(X = X, beta = beta) ## beta currently defined outside of the function 
+  
+
+    focal_LL <- get_ll_row(data = data_focal, p_row = P_f, row_behavior = beta_starting_behavior,
+                           behavior_list = behavior_list) 
+    
+    sum_LL <- sum(sum_LL, focal_LL)
+    
+  } ## end focal loop
+  
+  return(sum_LL)
+  
+} ## end function
+
+
+## test it
+get_ll_cov_b1(fake_data5.2, beta = fake_beta_slice, beta_starting_behavior = "move", 
+              behavior_list = fake_behaviorlist5) ## oh hell yeah it works! like so specific but it works!
+
+```
+
+
+```{r}
+## ok so next part is we optimize the beta for starting behavior i
+## i think this is basically like the fit_MM function? not sure what par is here tho
+
+## function takes
+    ## data
+    ## behavior list (check caps)
+    ## starting behavior
+    ## number of covariates
+    ## par = initial betas (MxB matrix) - slice of the array
+
+optim_cov_ll_b1 <- function(data, behavior_list, beta_starting_behavior, num_cov, maxit = 5000){
+    num_cov <- as.numeric(num_cov)
+    B <- as.numeric(length(behavior_list))
+  
+  ## out is the beta that is optimized, this is still just working with the beta slice so should be MxB
+    out <- matrix(NA, nrow = num_cov, ncol = B)
+    
+    starting_point <- matrix(num_cov*rnorm(B), nrow = B, ncol = num_cov) ## mimic the beta slice
+    
+    ## i am an optim function h8er
+    fit <- optim(par = starting_point, fn = function(par, data){ 
+       get_ll_cov_b1(data = data, beta = par, beta_starting_behavior = beta_starting_behavior, 
+                     behavior_list = behavior_list)}, data = data, 
+       control = c(fnscale = -1, maxit = maxit))
+              ## we're back to an error with the og get_ll within the get_ll_cov
+                ## like the very last line of the get_ll_row is no longer "conformable arrays"
+                  ## but it works for the get_ll_cov??? so its the inputs somewhere
+                    ## top guess its a problem with par but im using the same input???
+    
+    ## end fit def
+    
+    row_out <- fit$par
+  
+    return(out)
+} ## end function
+
+
+## testing
+optim_cov_ll_b1(data = fake_data5.2, behavior_list = fake_behaviorlist5, 
+                beta_starting_behavior = "move", num_cov = 2)
+```
 
 
 
-this made sense in the meeting and now im looking at it and have no idea
+```{r}
+## last part put it together by doing it across all the behaviors?
 
-bestie i have 100% lost the plot here :)
+optim_cov_ll_full <- function(data, behavior_list){
+  
+  B <- length(behavior_list)
+  
+  for (i in 1:B){
+    
+    optim_cov_ll_b1(data = data, behavior_list = behavior_list,  ## does the i need to be in quotes??
+                    beta_starting_behavior = i, num_cov = ) ## how to pull the number of covariates?
+                                                                ## should it just be an input?
+                                                            ## what am i supposed to do with the optimized betas?
+    
+  } ## end for loop
+  
+  return() ## what are we returning lol
+  
+} ## end function
+
+```
+
+
+
+documentation for R package!! also examples? need something written up in next like 2 weeks to graduate lol
+
+Y represents data
+
+add new function to their own script files in package folder
