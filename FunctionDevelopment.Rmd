@@ -30,7 +30,8 @@ _____________________________________________________________________________
 * VII. Optimizing by row (replace fit_MM)
   - VII.1 Function Code
   - VII.2 Testing (but also just use V.III)
-* VIII. Adding Covariates
+* VIII. Adding Covariates + Optimizing (this is like 3 building functions)
+* IIX. Test Data w/Known Betas
 
 __________________________________________________________________________
 
@@ -59,7 +60,9 @@ ____________________________________________________________________________
   - choose path of least resistance rn
   - for rn im just going to choose focals that dont have PAUSE and i will deal with that
   later :)
-* add uncertainty to optmization (confidence intervals?)
+* add uncertainty to optimization (confidence intervals?)
+* modifying functions to not need to take a behavior list as an input: 
+  - behavior_list <- dimnames(beta)[2]
 ____________________________________________________________________________
 
 # II. Transition Matrix from an Individual Focal
@@ -76,7 +79,7 @@ matrixfunct <- function(data, behavior_list){
   Matrix <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))
   rownames(Matrix) <- colnames(Matrix) <- behavior_list
   for(b1 in behavior_list){
-    denomentator <- sum(dataframe$TimeSpent[data$Behavior == b1]) - 
+    denomentator <- sum(data$TimeSpent[data$Behavior == b1]) - 
       as.numeric(tail(data$Behavior, 1) == b1) ## accounting for if the last behavior in focal is b1 (doesn't count as a transition opportunity), overall total possible transition opportunities
     b1_ind <- which(data$Behavior == b1)
     for(b2 in behavior_list){
@@ -162,22 +165,22 @@ get_ll <- function(data, P, behavior_list){
 ```{r}
 ## ok im gonna train it on focal 28 and then use focal 10 as the input data?
 
-P_28 <- matrixfunct(focal_28, behaviorshortlist)
-P_28
-P_28[is.na(P_28)] <- 0 ## get rid of NaNs
-
-focal_10 <- isolate.focal(10)
-P_10 <- matrixfunct(focal_10, behaviorshortlist)
-P_10[is.na(P_10)] <- 0 ## get rid of NaNs
-
-get_ll(focal_10, P_28) 
-
-get_ll(focal_10, P_10)
-
-P_fake <- matrix(1/12, 12, 12) ## cant have 0 probability for a transition that we do observe - shouldnt happen in the real full set
-focal_1 <- isolate.focal(1)
-
-get_ll(focal_1, P_fake)
+# P_28 <- matrixfunct(focal_28, behaviorshortlist)
+# P_28
+# P_28[is.na(P_28)] <- 0 ## get rid of NaNs
+# 
+# focal_10 <- isolate.focal(10)
+# P_10 <- matrixfunct(focal_10, behaviorshortlist)
+# P_10[is.na(P_10)] <- 0 ## get rid of NaNs
+# 
+# get_ll(focal_10, P_28) 
+# 
+# get_ll(focal_10, P_10)
+# 
+# P_fake <- matrix(1/12, 12, 12) ## cant have 0 probability for a transition that we do observe - shouldnt happen in the real full set
+# focal_1 <- isolate.focal(1)
+# 
+# get_ll(focal_1, P_fake)
 ```
 
 ___________________________________________________________________
@@ -196,7 +199,7 @@ isolate.focal <- function(data, i){
 }
 
 # test
-focal_28 <- isolate.focal(monkeyprelimdata, 28)
+# focal_28 <- isolate.focal(monkeyprelimdata, 28)
 ```
 
 
@@ -233,10 +236,10 @@ fake_duration <- c(5, 10, 4, 102, 16, 58, 14, 9, 11)
 X <- fake_data <- data.frame(fake_duration, fake_behaviors)
 colnames(X) <- colnames(fake_data) <- c("TimeSpent", "Behavior") ## match my fake one to work with the matrixfunctions
 
-fake_behaviorshortlist <- c("move", "sleep", "feed")
-Pf <- matrixfunct(X, fake_behaviorshortlist) ## transition matrix of fake focal
+fake_behaviorlist <- c("move", "sleep", "feed")
+Pf <- matrixfunct(X, fake_behaviorlist) ## transition matrix of fake focal
 
-get_ll(X, Pf, fake_behaviorshortlist) 
+get_ll(X, Pf, fake_behaviorlist) 
 
 ## but now i want to optimize the P (so like its unknown)
 ## par is the intial values (starting point to optimize from)
@@ -249,14 +252,14 @@ get_ll(X, Pf, fake_behaviorshortlist)
 ## fake initial matrix
 initial_matrix_fake <- matrix(c(0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4), 
                               nrow = 3, ncol = 3)
-row.names(initial_matrix_fake) <- fake_behaviorshortlist
-colnames(initial_matrix_fake) <- fake_behaviorshortlist
+row.names(initial_matrix_fake) <- fake_behaviorlist
+colnames(initial_matrix_fake) <- fake_behaviorlist
 ```
 
 
 ## V.2 Function Code
 ```{r}
-fit_MM <- function(X, behavior_list, par = matrix(1/length(behavior_list), 
+fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list), 
                                                   nrow = length(behavior_list), 
                                                   ncol = length(behavior_list) - 1)){
   fit <- optim(par = par, fn = function(par, X){
@@ -266,7 +269,7 @@ fit_MM <- function(X, behavior_list, par = matrix(1/length(behavior_list),
     if(any(rowSums(Pf) > 1)) return(-Inf)
     Pf <- cbind(Pf, 1 - rowSums(Pf))
     rownames(Pf) <- colnames(Pf) <- behavior_list
-    get_ll(X, Pf, behavior_list)}, X = X, control = c(fnscale = -1, maxit = 5000))
+    get_ll(data, Pf, behavior_list)}, data = data, control = c(fnscale = -1, maxit = 5000))
   
   out <- fit$par
   out <- cbind(out, 1 - rowSums(out))
@@ -279,24 +282,24 @@ fit_MM <- function(X, behavior_list, par = matrix(1/length(behavior_list),
 
 ## V.3 Applications/Testing
 
-- trying different numbers of behaviors & different length focals to see where it breaks (it broke immediatly oops)
+- trying different numbers of behaviors & different length focals to see where it breaks (it broke immediately oops)
 
 ### Entire Focal
 - nope :)
 ```{r}
 ## throwing entire focal in there - returned a uniform 12x12 matrix (didnt even try??)
-test <- fit_MM(focal_10, behaviorshortlist)
-test
+# test <- fit_MM(focal_10, behaviorshortlist)
+# test
 ```
 
 ### 3 behaviors
 - works great
 ```{r}
 ## 3 behaviors - works really well
-test3 <- fit_MM(X, fake_behaviorshortlist)
+test3 <- fit_MM(X, fake_behaviorlist)
 test3 
 
-tm3 <- matrixfunct(X, fake_behaviorshortlist)
+tm3 <- matrixfunct(X, fake_behaviorlist)
 tm3
 ```
 
@@ -477,7 +480,7 @@ fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list),
       if(any(rowSums(Pf) > 1)) return(-Inf)
       Pf <- cbind(Pf, 1 - rowSums(Pf))
       rownames(Pf) <- colnames(Pf) <- behavior_list
-      get_ll(X, Pf, behavior_list)}, data = data, control = c(fnscale = -1, maxit = maxit))
+      get_ll(data, Pf, behavior_list)}, data = data, control = c(fnscale = -1, maxit = maxit))
     
     out <- fit$par
     out <- cbind(out, 1 - rowSums(out))
@@ -496,7 +499,7 @@ fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list),
         if(sum(par) > 1) return(-Inf)
         p_row <- c(par, 1 - sum(par))
         names(p_row) <- behavior_list
-        get_ll_row(X, p_row, row_behavior = b1, behavior_list)}, data = data,  
+        get_ll_row(data, p_row, row_behavior = b1, behavior_list)}, data = data,  
         control = c(fnscale = -1, maxit = maxit))
    
        row_out <- fit$par
@@ -513,10 +516,10 @@ fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list),
 ## VII.2 Testing (or just use the tests from V.3 bc its the same function name)
 ```{r}
 ## testing w/3 behaviors
-test3 <- fit_MM(X, fake_behaviorshortlist)
+test3 <- fit_MM(X, fake_behaviorlist)
 test3 
 
-tm3 <- matrixfunct(X, fake_behaviorshortlist)
+tm3 <- matrixfunct(X, fake_behaviorlist)
 tm3
 ```
 
@@ -553,10 +556,6 @@ fake_focal5.2.3 <- isolate.focal(fake_data5.2, 3)
 
 
 
-fake_beta_slice <- matrix(2*rnorm(5), nrow = 2, ncol = 5) 
-  
-
-X_test <- c(1, 1) 
 ```
 
 
@@ -577,6 +576,10 @@ cov2prob <- function(X, beta){
   
   return(P_b1)
 }
+
+fake_beta_slice <- matrix(2*rnorm(5), nrow = 2, ncol = 5) 
+X_test <- c(1, 1) 
+cov2prob(X_test, fake_beta_slice)
 
 ## yay it works (i think)
 ```
@@ -602,6 +605,7 @@ function 3:
   ## beta (slice of BxMxM array pertaining to starting behavior)
   ## starting behavior 
   ## behavior list
+  ## X (indicators for covariates)
 
 
 X_test5.2 <- matrix(c(1, 1, 1, 1, 0, 1), nrow = 3, ncol = 2)
@@ -641,8 +645,7 @@ get_ll_cov_b1(fake_data5.2, beta = fake_beta_slice, beta_starting_behavior = "mo
 
 
 ```{r}
-## ok so next part is we optimize the beta for starting behavior i
-## i think this is basically like the fit_MM function? not sure what par is here tho
+##optimize the beta for starting behavior i
 
 ## function takes
     ## data
@@ -652,7 +655,8 @@ get_ll_cov_b1(fake_data5.2, beta = fake_beta_slice, beta_starting_behavior = "mo
     ## number of covariates
     ## par = initial betas (MxB matrix) - slice of the array
 
-optim_cov_ll_b1 <- function(data, X, behavior_list, beta_starting_behavior, num_cov, maxit = 5000){
+optim_cov_ll_b1 <- function(data, X, behavior_list, beta_starting_behavior, num_cov, 
+                            maxit = 5000){
     num_cov <- as.numeric(num_cov)
     B <- as.numeric(length(behavior_list))
   
@@ -690,14 +694,16 @@ optim_cov_ll_b1(data = fake_data5.2, X = X_test5.2, behavior_list = fake_behavio
 
 
 ```{r}
-## last part put it together by doing it across all the behaviors?
+## last part put it together by doing it across all the behaviors
 
 optim_cov_ll_full <- function(data, X, behavior_list){
   
   B <- length(behavior_list)
   num_cov <- ncol(X)
   
-  out <- array(NA, dim = c(num_cov, B, B), dimnames = list(c("intercept", "habitat"), behavior_list, behavior_list))
+  row_names <- c("intercept", "habitat")
+  out <- array(NA, dim = c(num_cov, B, B), dimnames = list(row_names, behavior_list, behavior_list))
+  
   
   for (i in 1:B){
     
@@ -723,30 +729,89 @@ optim_cov_ll_full(data = fake_data5.2, X = X_test5.2, behavior_list = fake_behav
 
 ```
 
+_______________________________________________________________________________
+
+# IIX. Create Test Data w/Known Beta
 
 
-documentation for R package!! also examples? need something written up in next like 2 weeks to graduate lol
-
-Y represents data
-
-which habitat is habitat 1
-
-add new functions to their own script files in package folder
-roxygen
-adding examples
-
-documentation & simulate data where i know the "correct" betas
-
-make a function for simulate data
-
-X is FxM
-betas is MxBxB full array
-sim_data <- function(X, beta){
-
-get behavior list from dim names
-behavior_list <- dimnames(beta)[2]
-
-return(sequence of behaviors w/durations)
+```{r}
+## create fake beta --> 3 behaviors (B), 1 predictor + intercept (M)
+row_names <- c("intercept", "habitat")
+col_names <- c("move", "sleep", "feed")
+mat_names <- c("move", "sleep", "feed")
+beta_test <- array(0, dim = c(2, 3, 3), dimnames = list(row_names, col_names, mat_names))
+for (m in 1:2) {
+  mat <- matrix(runif(9), nrow = 3)
+  beta_test[m,,] <- mat/rowSums(mat)
 }
+X_test <- c(1,1) ## in habitat 1
+blist <- c("move", "sleep", "feed")
+```
 
-fit and simulate functions are like inverses of each other
+
+```{r}
+## creating test set w/known betas to check for accuracy
+  ## basically inverse of fit function
+
+## X is an FxM matrix (indicator for covariates)
+## beta is full MxBxB array
+## T_max gives a stopping point for how long the focal is
+
+## so it like works.... kinda for 1 focal only which was not the goal but i really only need 1 focal anyway
+## kinda lost it and i dont think this should be this long but here we are
+
+sim_data <- function(X, beta, T_max = 600) {
+  if (is.null(dim(X))) {
+    X <- matrix(X, nrow = 1)
+  } ## make it work with only 1 focal
+  F <- nrow(X) ## num focals
+  M <- ncol(X) ## num covariates + intercept
+  B <- dim(beta)[2] ## num behavior
+  
+  behavior_list <- dimnames(beta)[2] 
+  
+  out <- list()
+  
+  for (i in 1:F) {
+    x_i <- X[i, ] 
+    
+    trans_mat <- matrix(0, nrow = B, ncol = B)
+    for (m in 1:M) {
+      trans_mat <- trans_mat + x_i[m] * beta[m, , ]
+    }
+    
+    time <- 0 ; Behavior <- c() ; TimeSpent <- c()
+    
+    current_behavior <- sample(1:B, 1)
+    
+    while (time < T_max) {
+      Behavior <- c(Behavior, current_behavior)
+      dt <- sample(1:150, 1)
+      TimeSpent <- c(TimeSpent, dt)
+      time <- time + dt
+      
+      probs <- trans_mat[current_behavior, ]
+      probs[current_behavior] <- 0 ## dont choose the same behavior, this might mess it up??
+      current_behavior <- sample(1:B, 1, prob = probs)
+    } ## end while loop
+    
+    out[[i]] <- data.frame(FocalID = i, Behavior, TimeSpent, Habitat = 1)
+  } ## end loop over focals
+  
+  out <- as.data.frame(out)
+  out$Behavior <- replace(out$Behavior, out$Behavior == 1, "move")
+  out$Behavior <- replace(out$Behavior, out$Behavior == 2, "sleep")
+  out$Behavior <- replace(out$Behavior, out$Behavior == 3, "feed")
+  out$Habitat <- replace(out$Habitat, out$Habitat == 0, "jalan")
+  out$Habitat <- replace(out$Habitat, out$Habitat == 1, "hutan")
+  
+  return(out)
+} ## end function
+
+pls_work <- sim_data(X_test, beta_test) 
+
+optim_cov_ll_full(pls_work, X_test, blist) ## oOF something is Wrong
+                                          ## is it bc i set current behavior to 0?
+```
+
+
