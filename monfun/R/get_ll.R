@@ -1,4 +1,4 @@
-## intially adapted from the Transition Matrix function we made
+## initially adapted from the Transition Matrix function we made
 get_ll <- function(data, P, behavior_list){
   ## build a Y Duration Matrix (P without the denominator)
   Yduration <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))

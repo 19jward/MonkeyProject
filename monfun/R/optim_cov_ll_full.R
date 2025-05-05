@@ -11,11 +11,14 @@
   ## get_ll_row
 
 optim_cov_ll_full <- function(data, X, behavior_list){
-  
+  if (is.null(dim(X))) {
+    X <- matrix(X, nrow = 1)
+  }
   B <- length(behavior_list)
   num_cov <- ncol(X)
   
-  out <- array(NA, dim = c(num_cov, B, B), dimnames = list(c("intercept", "habitat"), behavior_list, behavior_list))
+  row_names <- c("intercept", "habitat")
+  out <- array(NA, dim = c(num_cov, B, B), dimnames = list(row_names, behavior_list, behavior_list))
   
   for (i in 1:B){
     

@@ -26,10 +26,6 @@ optim_cov_ll_b1 <- function(data, X, behavior_list, beta_starting_behavior, num_
     get_ll_cov_b1(data = data, beta = beta_start, beta_starting_behavior = beta_starting_behavior, 
                   behavior_list = behavior_list, X = X)}, data = data, 
     control = c(fnscale = -1, maxit = maxit))
-  ## we're back to an error with the og get_ll within the get_ll_cov
-  ## like the very last line of the get_ll_row is no longer "conformable arrays"
-  ## but it works for the get_ll_cov??? so its the inputs somewhere
-  ## top guess its a problem with par but im using the same input???
   
   ## end fit def
   

@@ -10,7 +10,7 @@ fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list),
       if(any(rowSums(Pf) > 1)) return(-Inf)
       Pf <- cbind(Pf, 1 - rowSums(Pf))
       rownames(Pf) <- colnames(Pf) <- behavior_list
-      get_ll(X, Pf, behavior_list)}, data = data, control = c(fnscale = -1, maxit = maxit))
+      get_ll(data, Pf, behavior_list)}, data = data, control = c(fnscale = -1, maxit = maxit))
     
     out <- fit$par
     out <- cbind(out, 1 - rowSums(out))
@@ -29,7 +29,7 @@ fit_MM <- function(data, behavior_list, par = matrix(1/length(behavior_list),
         if(sum(par) > 1) return(-Inf)
         p_row <- c(par, 1 - sum(par))
         names(p_row) <- behavior_list
-        get_ll_row(X, p_row, row_behavior = b1, behavior_list)}, data = data,  
+        get_ll_row(data, p_row, row_behavior = b1, behavior_list)}, data = data,  
         control = c(fnscale = -1, maxit = maxit))
       
       row_out <- fit$par
