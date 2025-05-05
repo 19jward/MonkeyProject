@@ -2,7 +2,7 @@ matrixfunct <- function(data, behavior_list){
   Matrix <- matrix(NA, nrow = length(behavior_list), ncol = length(behavior_list))
   rownames(Matrix) <- colnames(Matrix) <- behavior_list
   for(b1 in behavior_list){
-    denomentator <- sum(dataframe$TimeSpent[data$Behavior == b1]) - 
+    denomentator <- sum(data$TimeSpent[data$Behavior == b1]) - 
       as.numeric(tail(data$Behavior, 1) == b1) ## accounting for if the last behavior in focal is b1 (doesn't count as a transition opportunity), overall total possible transition opportunities
     b1_ind <- which(data$Behavior == b1)
     for(b2 in behavior_list){
