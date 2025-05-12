@@ -39,7 +39,7 @@ X_test <- c(1,1) ## in habitat 1
 blist <- c("move", "sleep", "feed")
 
 test <- sim_behavior_sequence(X_test, beta_test)
-test <- collapse_sim_data(pls_work)
+test <- collapse_sim_data(test)
 
 
 ## The function is currently defined as

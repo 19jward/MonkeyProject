@@ -4,8 +4,8 @@ Title: For Monkey Project w/Henry
 Version: 0.1.0
 Author: Josephine Ward & Henry Scharf
 Maintainer: The package maintainer <josephineward@arizona.edu>
-Description: Basic convenience functions for the monkey project
-    Has the isolate focal function, transition matrix, logLL, and the optimization fnctn 
-License: What license is it under?
+Description: Basic convenience functions for the monkey project.
+    Has the isolate focal function, transition matrix, logLL, and the optimization fnctn.
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
