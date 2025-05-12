@@ -11,7 +11,7 @@ sim_behavior_sequence(X, beta, T_max)
   \item{X}{X is an FxM matrix (indicator for covariates) - for this it only works for 1 focal, so 1xM}
   \item{beta}{beta is full MxBxB array}
   \item{T_max}{T_max gives a stopping point for how long the focal is (# seconds)}
-} }
+} 
 \details{
 }
 \value{

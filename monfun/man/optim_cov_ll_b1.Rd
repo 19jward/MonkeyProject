@@ -9,22 +9,12 @@ optimize beta slices (with covariates) by log-likelihood for a given starting be
 optim_cov_ll_b1(data, X, behavior_list, beta_starting_behavior, num_cov, maxit = 5000)
 }
 \arguments{
-  \item{data}{
-focals, note the data must have column names "FocalID", "Behavior", "TimeSpent", & "Habitat"
-}
-  \item{X}{
-indicator for covariates (matrix)} 
-}
-  \item{behavior_list}{
-list of behaviors in data
-}
-  \item{beta_starting_behavior}{
-b1 - behavior starting from (string)
-}
-  \item{num_cov}{
-number of covariates (including the intercept) (M)}
-  \item{maxit}{
-max number of iterations to run to reach optim}
+  \item{data}{focals, note the data must have column names "FocalID", "Behavior", "TimeSpent", & "Habitat"}
+  \item{X}{indicator for covariates (matrix)} 
+  \item{behavior_list}{list of behaviors in data}
+  \item{beta_starting_behavior}{b1 - behavior starting from (string) }
+  \item{num_cov}{number of covariates (including the intercept) (M)}
+  \item{maxit}{max number of iterations to run to reach optim}
 }
 \details{
 }
