@@ -82,6 +82,8 @@ sim_behavior_sequence <- function(X, beta, T_max = 600) {
   
   return(out)
 } 
+
+}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
 % \keyword{ ~kwd1 }

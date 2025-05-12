@@ -54,6 +54,8 @@ matrixfunct <- function(data, behavior_list){
   }
   return(Matrix)
 }
+
+}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
 % \keyword{ ~kwd1 }

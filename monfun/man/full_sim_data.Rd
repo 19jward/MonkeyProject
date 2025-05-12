@@ -75,6 +75,7 @@ full_sim_data <- function(X, beta, T_max, num_focals){
   return(output)  
 } ## end function
 
+}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
 % \keyword{ ~kwd1 }

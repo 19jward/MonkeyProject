@@ -11,11 +11,8 @@ collapse_sim_data(data)
 \arguments{
   \item{data}{sequence of behaviors}
 }
-\details{
-}
-\value{
-returns data frame with one column of behaviors and one column of duration (TimeSpent)
-}
+\details{}
+\value{returns data frame with one column of behaviors and one column of duration (TimeSpent)}
 \references{
 }
 \author{
@@ -53,6 +50,8 @@ collapse_sim_data <- function(data){
   
   out <- data.frame(Behavior, TimeSpent)
   return(out)
+}
+
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
