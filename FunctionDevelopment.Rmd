@@ -1,7 +1,7 @@
 ---
 title: "Function Development"
 author: "Josephine Ward"
-date: "2025-02-10"
+date: "2025"
 output: pdf_document
 ---
 
@@ -673,10 +673,6 @@ optim_cov_ll_b1 <- function(data, X, behavior_list, beta_starting_behavior, num_
        get_ll_cov_b1(data = data, beta = beta_start, beta_starting_behavior = beta_starting_behavior, 
                      behavior_list = behavior_list, X = X)}, data = data, 
        control = c(fnscale = -1, maxit = maxit))
-              ## we're back to an error with the og get_ll within the get_ll_cov
-                ## like the very last line of the get_ll_row is no longer "conformable arrays"
-                  ## but it works for the get_ll_cov??? so its the inputs somewhere
-                    ## top guess its a problem with par but im using the same input???
     
     ## end fit def
     
@@ -727,6 +723,9 @@ optim_cov_ll_full <- function(data, X, behavior_list){
 
 optim_cov_ll_full(data = fake_data5.2, X = X_test5.2, behavior_list = fake_behaviorlist5)
 
+## word this is still super innaccurate so its probably an issue with the optim function
+optim_cov_ll_full(data = test_data, X = X_test2, behavior_list = blist)
+
 ```
 
 _______________________________________________________________________________
@@ -740,8 +739,11 @@ row_names <- c("intercept", "habitat")
 col_names <- c("move", "sleep", "feed")
 mat_names <- c("move", "sleep", "feed")
 beta_test <- array(0, dim = c(2, 3, 3), dimnames = list(row_names, col_names, mat_names))
-for (m in 1:2) {
-  mat <- matrix(runif(9), nrow = 3)
+B <- 3
+beta_test[1, , ] <- 2*diag(B)
+M <- 2
+for (m in 2:M) {
+  mat <- matrix(runif(B^2), nrow = B)
   beta_test[m,,] <- mat/rowSums(mat)
 }
 X_test <- c(1,1) ## in habitat 1
@@ -751,20 +753,18 @@ blist <- c("move", "sleep", "feed")
 
 ```{r}
 ## creating test set w/known betas to check for accuracy
-  ## basically inverse of fit function
+    ## basically inverse of fit function
 
-## X is an FxM matrix (indicator for covariates)
+## X is an FxM matrix (indicator for covariates) - for this it only works for 1 focal, so 1xM
 ## beta is full MxBxB array
 ## T_max gives a stopping point for how long the focal is
+## currently specifically built for 3 behaviors, can be modified for more
+## outputs list of behaviors, each assumed to be 1 unit (second) of duration
 
-## so it like works.... kinda for 1 focal only which was not the goal but i really only need 1 focal anyway
-## kinda lost it and i dont think this should be this long but here we are
-
-sim_data <- function(X, beta, T_max = 600) {
+sim_behavior_sequence <- function(X, beta, T_max = 600) {
   if (is.null(dim(X))) {
     X <- matrix(X, nrow = 1)
   } ## make it work with only 1 focal
-  F <- nrow(X) ## num focals
   M <- ncol(X) ## num covariates + intercept
   B <- dim(beta)[2] ## num behavior
   
@@ -772,46 +772,99 @@ sim_data <- function(X, beta, T_max = 600) {
   
   out <- list()
   
-  for (i in 1:F) {
-    x_i <- X[i, ] 
-    
-    trans_mat <- matrix(0, nrow = B, ncol = B)
-    for (m in 1:M) {
-      trans_mat <- trans_mat + x_i[m] * beta[m, , ]
-    }
-    
-    time <- 0 ; Behavior <- c() ; TimeSpent <- c()
-    
-    current_behavior <- sample(1:B, 1)
-    
-    while (time < T_max) {
-      Behavior <- c(Behavior, current_behavior)
-      dt <- sample(1:150, 1)
-      TimeSpent <- c(TimeSpent, dt)
-      time <- time + dt
-      
-      probs <- trans_mat[current_behavior, ]
-      probs[current_behavior] <- 0 ## dont choose the same behavior, this might mess it up??
-      current_behavior <- sample(1:B, 1, prob = probs)
-    } ## end while loop
-    
-    out[[i]] <- data.frame(FocalID = i, Behavior, TimeSpent, Habitat = 1)
-  } ## end loop over focals
+  trans_mat <- matrix(0, nrow = B, ncol = B)
+  for (b in 1:B) {
+    trans_mat[b,] <- cov2prob(X, beta[,b,])
+  }
+  
+  time <- 0 ; Behavior <- c()
+  
+  current_behavior <- sample(1:B, 1)
+  
+  for(i in 2:T_max) {
+    Behavior <- c(Behavior, current_behavior)
+    probs <- trans_mat[current_behavior, ]
+    current_behavior <- sample(1:B, 1, prob = probs)
+  } ## end for loop
+  
+  
+  out <- data.frame(Behavior)
   
   out <- as.data.frame(out)
   out$Behavior <- replace(out$Behavior, out$Behavior == 1, "move")
   out$Behavior <- replace(out$Behavior, out$Behavior == 2, "sleep")
   out$Behavior <- replace(out$Behavior, out$Behavior == 3, "feed")
-  out$Habitat <- replace(out$Habitat, out$Habitat == 0, "jalan")
-  out$Habitat <- replace(out$Habitat, out$Habitat == 1, "hutan")
+  out$Behavior <- as.factor(out$Behavior)
   
   return(out)
 } ## end function
 
-pls_work <- sim_data(X_test, beta_test) 
+## test
+pls_work <- sim_behavior_sequence(X_test, beta_test) 
+```
 
-optim_cov_ll_full(pls_work, X_test, blist) ## oOF something is Wrong
-                                          ## is it bc i set current behavior to 0?
+
+```{r}
+## collapse the behavior list and add in a duration column
+## may not be actually realistic depending on what you made the fake beta
+collapse_sim_data <- function(data){
+  points <- which(diff(as.numeric(data$Behavior))!= 0) ## where the transitions happen
+  TimeSpent <- diff(c(0, points))
+  Behavior <- data$Behavior[points]
+  
+  out <- data.frame(Behavior, TimeSpent)
+  return(out)
+}
+
+## test
+pls_work <- collapse_sim_data(pls_work)
+```
+
+
+```{r}
+## finalize simulated data combining the 2 previous functions (sim_behavior_sequence, collapse_sim_data)
+## also adds a column for habitat and focal
+## X can now be multiple rows for a FxM
+full_sim_data <- function(X, beta, T_max, num_focals){
+  ## do i need to make sure X is a matrix?
+  output <- c()
+  for (i in 1:num_focals){
+  x_i <- X[i, ] ## pull out correct focal from X
+  if (is.null(dim(x_i))) {
+    x_i <- matrix(x_i, nrow = 1)
+  }
+  
+  ## run the simulate behaviors
+  data <- sim_behavior_sequence(x_i, beta, T_max)
+  
+  ## collapse the simulated behaviors
+  data <- collapse_sim_data(data)
+  
+  ## add FocalID column
+  FocalID <- c(rep.int(i, nrow(data)))
+  data <- cbind(data, FocalID)
+  
+  ## add habitat column
+  Habitat <- c(rep.int(x_i[1,2], nrow(data)))
+  data <- cbind(data, Habitat)
+  
+  ## put multiple focals together
+  output <- rbind(output, data)
+  
+  } ## end focal for loop
+  
+  ## replace numbers in habitat with names (NOTE: not 100% sure which is which, need to check)
+  output$Habitat <- replace(output$Habitat, output$Habitat == 0, "jalan")
+  output$Habitat <- replace(output$Habitat, output$Habitat == 1, "hutan")
+
+  return(output)  
+} ## end function
+
+
+## test
+X_test2 <- matrix(c(1, 1, 1, 1, 0, 1), nrow = 3, ncol = 2) ## multiple focal X
+
+test_data <- full_sim_data(X_test2, beta_test, T_max = 1000, num_focals = 3) ## yay it works
 ```
 
 
